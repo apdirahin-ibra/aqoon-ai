@@ -1,0 +1,31 @@
+{
+  "name": "aqoon-ai",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F @aqoon-ai/backend dev",
+    "dev:setup": "turbo -F @aqoon-ai/backend dev:setup",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@aqoon-ai/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@aqoon-ai/config": "workspace:*",
+    "@biomejs/biome": "^2.2.0",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.28.2"
+}
