@@ -1,71 +1,75 @@
-# aqoon-ai
+# Aqoon AI
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Convex, and more.
+**AI-Assisted Skill Learning Hub**
 
-## Features
+Aqoon AI is a modern, scalable learning management system (LMS) built to provide personalized education through AI-driven tutoring, interactive courses, and real-time progress tracking.
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Convex** - Reactive backend-as-a-service platform
-- **Authentication** - Better-Auth
-- **Biome** - Linting and formatting
-- **Turborepo** - Optimized monorepo build system
+This repository is a monorepo containing the web application, mobile application, and shared backend infrastructure.
 
-## Getting Started
+## 🚀 Tech Stack
 
-First, install the dependencies:
+- **Frontend (Web):** Next.js 15 (App Router), React 19, Tailwind CSS 4, shadcn/ui.
+- **Frontend (Mobile):** React Native (Expo).
+- **Backend:** Convex (Realtime Database, Functions, Cron Jobs).
+- **Authentication:** Better-Auth (with Convex Adapter).
+- **AI Integration:** OpenAI / Gemini (via Convex Actions).
+- **Tooling:** Turborepo, Biome, TypeScript.
 
-```bash
-pnpm install
-```
+## 🌟 Key Features
 
-## Convex Setup
+- **Interactive Course Player:** Rich text and video lessons with progress tracking.
+- **AI Tutor:** Real-time chat for homework help, study planning, and quiz feedback.
+- **Role-Based Access:** Distinct portals for Students, Tutors, and Admins.
+- **Quizzes & Assessments:** Automated grading with AI-generated explanations.
+- **Visual Roadmaps:** Structured learning paths for different skills.
 
-This project uses Convex as a backend. You'll need to set up Convex before running the app:
+## 📂 Project Structure
 
 ```bash
-pnpm run dev:setup
-```
-
-Follow the prompts to create a new Convex project and connect it to your application.
-
-Copy environment variables from `packages/backend/.env.local` to `apps/*/.env`.
-
-Then, run the development server:
-
-```bash
-pnpm run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-Use the Expo Go app to run the mobile application.
-Your app will connect to the Convex cloud backend automatically.
-
-## Git Hooks and Formatting
-
-- Format and lint fix: `pnpm run check`
-
-## Project Structure
-
-```
 aqoon-ai/
 ├── apps/
-│   ├── web/         # Frontend application (Next.js)
-│   ├── native/      # Mobile application (React Native, Expo)
+│   ├── web/         # Next.js 15 Web Application
+│   └── native/      # Expo React Native App
 ├── packages/
-│   ├── backend/     # Convex backend functions and schema
+│   ├── backend/     # Convex Schema, API Functions, Auth Config
+│   ├── config/      # Shared configurations (Tailwind, TypeScript, Biome)
+│   └── env/         # Environment variable validation
 ```
 
-## Available Scripts
+## 🛠️ Getting Started
 
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run dev:setup`: Setup and configure your Convex project
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run dev:native`: Start the React Native/Expo development server
-- `pnpm run check`: Run Biome formatting and linting
+1.  **Install Dependencies:**
+
+    ```bash
+    pnpm install
+    ```
+
+2.  **Setup Backend (Convex):**
+
+    ```bash
+    pnpm run dev:setup
+    ```
+
+    _Follow the prompts to link to your Convex project._
+
+3.  **Start Development Server:**
+    ```bash
+    pnpm run dev
+    ```
+
+    - Web: [http://localhost:3001](http://localhost:3001)
+    - Convex Dashboard: `npx convex dashboard`
+
+## 🔐 Environment Variables
+
+Copy `.env.example` to `.env` in `packages/backend` and `apps/web`.
+Required keys:
+
+- `CONVEX_DEPLOYMENT`
+- `NEXT_PUBLIC_CONVEX_URL`
+- `BETTER_AUTH_SECRET`
+- `OPENAI_API_KEY` (or GEMINI_API_KEY)
+
+## 📜 License
+
+Private Property of Aqoon AI.
