@@ -323,5 +323,5 @@ export const auth = betterAuth({
 2.  **Schema:** Copy the `schema.ts` above to `packages/backend/convex/schema.ts`.
 3.  **Auth:** Setup `better-auth` files and environment variables.
 4.  **Backend Functions:** Implement `courses.ts` and `enrollments.ts` first.
-5.  **Frontend:** Copy `lovable-project/src/pages/Courses.tsx` -> `apps/web/app/courses/page.tsx` and refactor to use Convex hooks.
+5.  **Frontend:** Copy `v1/src/pages/Courses.tsx` -> `apps/web/app/courses/page.tsx` and refactor to use Convex hooks.
 6.  **Verify:** Test **Enrollment Logic** manually to ensure Premium courses cannot be accessed for free.
