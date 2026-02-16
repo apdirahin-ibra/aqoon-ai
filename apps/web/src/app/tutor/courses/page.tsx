@@ -1,263 +1,213 @@
 "use client";
 
 import {
-    BookOpen,
-    Edit,
-    Eye,
-    Loader2,
-    MoreHorizontal,
-    Plus,
-    Search,
-    Trash2,
+  BookOpen,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Star,
+  Trash,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 
-interface Course {
-    id: string;
-    title: string;
-    description: string | null;
-    category: string;
-    level: string;
-    isPublished: boolean;
-    isPremium: boolean;
-    priceCents: number;
-    createdAt: string;
-    enrollmentsCount: number;
-    lessonsCount: number;
-}
-
-const mockCourses: Course[] = [
-    {
-        id: "1",
-        title: "Introduction to Python Programming",
-        description: "Learn Python from scratch with hands-on exercises",
-        category: "coding",
-        level: "beginner",
-        isPublished: true,
-        isPremium: false,
-        priceCents: 0,
-        createdAt: "2024-01-10",
-        enrollmentsCount: 145,
-        lessonsCount: 20,
-    },
-    {
-        id: "2",
-        title: "Advanced Web Development with React",
-        description: "Build modern web applications with React and TypeScript",
-        category: "coding",
-        level: "intermediate",
-        isPublished: true,
-        isPremium: true,
-        priceCents: 7999,
-        createdAt: "2024-01-20",
-        enrollmentsCount: 89,
-        lessonsCount: 25,
-    },
-    {
-        id: "3",
-        title: "Data Science Fundamentals",
-        description: "Master the basics of data analysis and visualization",
-        category: "coding",
-        level: "beginner",
-        isPublished: false,
-        isPremium: true,
-        priceCents: 5999,
-        createdAt: "2024-02-01",
-        enrollmentsCount: 0,
-        lessonsCount: 8,
-    },
-    {
-        id: "4",
-        title: "UI/UX Design Principles",
-        description: "Learn design thinking and create beautiful interfaces",
-        category: "art",
-        level: "beginner",
-        isPublished: true,
-        isPremium: false,
-        priceCents: 0,
-        createdAt: "2024-02-10",
-        enrollmentsCount: 62,
-        lessonsCount: 15,
-    },
+const courses = [
+  {
+    id: "1",
+    title: "Introduction to Python Programming",
+    students: 245,
+    rating: 4.9,
+    lessons: 24,
+    status: "published" as const,
+    completionRate: 78,
+    revenue: "$4,200",
+    thumbnail: "🐍",
+  },
+  {
+    id: "2",
+    title: "Web Development with React",
+    students: 189,
+    rating: 4.7,
+    lessons: 32,
+    status: "published" as const,
+    completionRate: 65,
+    revenue: "$3,600",
+    thumbnail: "⚛️",
+  },
+  {
+    id: "3",
+    title: "Advanced JavaScript Patterns",
+    students: 92,
+    rating: 4.8,
+    lessons: 18,
+    status: "draft" as const,
+    completionRate: 0,
+    revenue: "$2,100",
+    thumbnail: "📦",
+  },
+  {
+    id: "4",
+    title: "Data Science Fundamentals",
+    students: 0,
+    rating: 0,
+    lessons: 8,
+    status: "draft" as const,
+    completionRate: 0,
+    revenue: "$0",
+    thumbnail: "📊",
+  },
 ];
 
 export default function TutorCoursesPage() {
-    const [courses] = useState<Course[]>(mockCourses);
-    const [loading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
-    const filteredCourses = courses.filter((course) => {
-        const matchesSearch = course.title
-            .toLowerCase()
-            .includes(search.toLowerCase());
-        const matchesStatus =
-            statusFilter === "all" ||
-            (statusFilter === "published" && course.isPublished) ||
-            (statusFilter === "draft" && !course.isPublished);
-        return matchesSearch && matchesStatus;
-    });
+  const filtered = courses.filter((c) =>
+    c.title.toLowerCase().includes(search.toLowerCase()),
+  );
 
-    const formatPrice = (cents: number) =>
-        new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-        }).format(cents / 100);
-
-    const formatDate = (date: string) =>
-        new Date(date).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-
-    if (loading) {
-        return (
-            <div className="flex min-h-[400px] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="container py-8">
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="mb-2 font-bold font-display text-3xl">My Courses</h1>
-                    <p className="text-muted-foreground">
-                        Manage and organize all your courses
-                    </p>
-                </div>
-                <Button asChild>
-                    <Link href="/tutor/courses/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Course
-                    </Link>
-                </Button>
-            </div>
-
-            {/* Filters */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-                <div className="relative flex-1">
-                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Search courses..."
-                        className="pl-10"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Courses</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="draft">Drafts</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
-            {/* Course Grid */}
-            {filteredCourses.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredCourses.map((course) => (
-                        <Card
-                            key={course.id}
-                            className="overflow-hidden transition-shadow hover:shadow-lg"
-                        >
-                            <div className="relative flex aspect-video items-center justify-center bg-muted">
-                                <BookOpen className="h-12 w-12 text-muted-foreground" />
-                                <div className="absolute top-2 right-2 flex gap-1.5">
-                                    {course.isPublished ? (
-                                        <Badge className="bg-green-500/10 text-green-600">
-                                            Published
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="secondary">Draft</Badge>
-                                    )}
-                                    {course.isPremium && (
-                                        <Badge className="bg-amber-500/10 text-amber-600">
-                                            Premium
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="line-clamp-1 text-lg">
-                                    {course.title}
-                                </CardTitle>
-                                <p className="line-clamp-2 text-muted-foreground text-sm">
-                                    {course.description}
-                                </p>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="mb-4 flex items-center gap-4 text-muted-foreground text-sm">
-                                    <span>{course.lessonsCount} lessons</span>
-                                    <span>{course.enrollmentsCount} students</span>
-                                    {course.isPremium && (
-                                        <span className="font-medium text-foreground">
-                                            {formatPrice(course.priceCents)}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="mb-3 text-muted-foreground text-xs">
-                                    Created {formatDate(course.createdAt)}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button asChild variant="outline" size="sm" className="flex-1">
-                                        <Link href={`/tutor/courses/${course.id}`}>
-                                            <Edit className="mr-2 h-4 w-4" />
-                                            Edit
-                                        </Link>
-                                    </Button>
-                                    <Button asChild variant="ghost" size="sm">
-                                        <Link href={`/courses/${course.id}`}>
-                                            <Eye className="h-4 w-4" />
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            ) : (
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <BookOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                        <h3 className="mb-2 font-semibold text-lg">No courses found</h3>
-                        <p className="mb-4 text-muted-foreground">
-                            {search
-                                ? "Try adjusting your search or filters"
-                                : "Create your first course to start teaching"}
-                        </p>
-                        <Button asChild>
-                            <Link href="/tutor/courses/new">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Create Course
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
+  return (
+    <div className="container py-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="mb-2 font-bold font-display text-3xl">My Courses</h1>
+          <p className="text-muted-foreground leading-relaxed">
+            Manage and track your published courses
+          </p>
         </div>
-    );
+        <Button
+          asChild
+          className="rounded-xl px-6 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Link href={"/tutor/courses/editor" as any}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Course
+          </Link>
+        </Button>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-6 max-w-sm">
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search courses..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Course Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((course, index) => (
+          <div
+            key={course.id}
+            className="group animate-fade-in-up overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:border-transparent hover:shadow-lg"
+            style={{ animationDelay: `${index * 0.1}s` }}
+          >
+            {/* Thumbnail area */}
+            <div className="flex h-32 items-center justify-center bg-linear-to-br from-muted to-muted/50">
+              <span className="text-5xl">{course.thumbnail}</span>
+            </div>
+
+            <div className="p-5">
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <h3 className="font-semibold leading-tight transition-colors group-hover:text-primary">
+                  {course.title}
+                </h3>
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-muted">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div className="mb-3 flex items-center gap-3">
+                <Badge
+                  variant={
+                    course.status === "published" ? "default" : "secondary"
+                  }
+                >
+                  {course.status}
+                </Badge>
+                <span className="text-muted-foreground text-xs">
+                  {course.lessons} lessons
+                </span>
+              </div>
+
+              <div className="mb-4 flex items-center gap-4 text-muted-foreground text-sm">
+                <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {course.students}
+                </span>
+                {course.rating > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Star className="h-3.5 w-3.5 text-warning" />
+                    {course.rating}
+                  </span>
+                )}
+                <span className="ml-auto font-medium text-foreground">
+                  {course.revenue}
+                </span>
+              </div>
+
+              {course.status === "published" && (
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      Avg. Completion
+                    </span>
+                    <span className="font-medium">
+                      {course.completionRate}%
+                    </span>
+                  </div>
+                  <Progress value={course.completionRate} className="h-1.5" />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-muted to-muted/50">
+            <BookOpen className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="mb-1 font-semibold">No courses found</h3>
+          <p className="text-muted-foreground text-sm">
+            Try adjusting your search or create a new course
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }

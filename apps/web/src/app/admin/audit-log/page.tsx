@@ -1,289 +1,248 @@
 "use client";
 
-import {
-    ClipboardList,
-    Filter,
-    Loader2,
-    Search,
-} from "lucide-react";
+import { Download, FileText, Search } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AuditEntry {
-    id: string;
-    action: string;
-    actor: string;
-    actorRole: "admin" | "tutor" | "student" | "system";
-    target: string;
-    details: string;
-    timestamp: string;
-    severity: "info" | "warning" | "critical";
+  id: string;
+  timestamp: string;
+  user: string;
+  action: string;
+  details: string;
+  category: "auth" | "course" | "user" | "payment" | "system";
 }
 
 const mockAuditLog: AuditEntry[] = [
-    {
-        id: "1",
-        action: "user.role.changed",
-        actor: "Ahmed Hassan",
-        actorRole: "admin",
-        target: "Sarah Johnson",
-        details: "Changed role from student to tutor",
-        timestamp: "2024-02-10T14:30:00Z",
-        severity: "warning",
-    },
-    {
-        id: "2",
-        action: "course.published",
-        actor: "Sarah Johnson",
-        actorRole: "tutor",
-        target: "Introduction to Python",
-        details: "Course published and made visible to students",
-        timestamp: "2024-02-10T12:15:00Z",
-        severity: "info",
-    },
-    {
-        id: "3",
-        action: "user.suspended",
-        actor: "Ahmed Hassan",
-        actorRole: "admin",
-        target: "David Kim",
-        details: "Account suspended for policy violation",
-        timestamp: "2024-02-09T18:45:00Z",
-        severity: "critical",
-    },
-    {
-        id: "4",
-        action: "course.deleted",
-        actor: "Michael Chen",
-        actorRole: "tutor",
-        target: "Old Draft Course",
-        details: "Draft course permanently deleted",
-        timestamp: "2024-02-09T10:20:00Z",
-        severity: "warning",
-    },
-    {
-        id: "5",
-        action: "payment.processed",
-        actor: "System",
-        actorRole: "system",
-        target: "Order #12345",
-        details: "Payment of $79.99 processed successfully",
-        timestamp: "2024-02-08T16:00:00Z",
-        severity: "info",
-    },
-    {
-        id: "6",
-        action: "user.registered",
-        actor: "System",
-        actorRole: "system",
-        target: "Emily Rodriguez",
-        details: "New user registered via Google OAuth",
-        timestamp: "2024-02-08T09:30:00Z",
-        severity: "info",
-    },
-    {
-        id: "7",
-        action: "course.price.changed",
-        actor: "Sarah Johnson",
-        actorRole: "tutor",
-        target: "Advanced React",
-        details: "Price changed from $49.99 to $79.99",
-        timestamp: "2024-02-07T14:10:00Z",
-        severity: "warning",
-    },
-    {
-        id: "8",
-        action: "payout.requested",
-        actor: "Michael Chen",
-        actorRole: "tutor",
-        target: "Payout #789",
-        details: "Payout of $312.00 requested via bank transfer",
-        timestamp: "2024-02-07T11:00:00Z",
-        severity: "info",
-    },
+  {
+    id: "1",
+    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    user: "Ahmed Hassan",
+    action: "User Login",
+    details: "Successful login from 192.168.1.1",
+    category: "auth",
+  },
+  {
+    id: "2",
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    user: "Sara Ali",
+    action: "Course Published",
+    details: 'Published "Web Development with React"',
+    category: "course",
+  },
+  {
+    id: "3",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    user: "Ibrahim Nur",
+    action: "Role Changed",
+    details: "Changed role from Student to Tutor",
+    category: "user",
+  },
+  {
+    id: "4",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    user: "System",
+    action: "Backup Completed",
+    details: "Automated daily backup completed successfully",
+    category: "system",
+  },
+  {
+    id: "5",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    user: "Fatima Omar",
+    action: "Payment Received",
+    details: "$29.99 for Python Basics enrollment",
+    category: "payment",
+  },
+  {
+    id: "6",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    user: "Mohamed Yusuf",
+    action: "Course Deleted",
+    details: 'Deleted draft course "Test Course"',
+    category: "course",
+  },
+  {
+    id: "7",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    user: "Khadija Abdi",
+    action: "Account Suspended",
+    details: "User suspended for policy violation",
+    category: "user",
+  },
+  {
+    id: "8",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    user: "System",
+    action: "SSL Certificate Renewed",
+    details: "Auto-renewed SSL certificate for api.aqoon.ai",
+    category: "system",
+  },
+  {
+    id: "9",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    user: "Ahmed Hassan",
+    action: "Failed Login Attempt",
+    details: "3 failed login attempts from 10.0.0.1",
+    category: "auth",
+  },
+  {
+    id: "10",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
+    user: "Sara Ali",
+    action: "Payout Processed",
+    details: "$450.00 payout to tutor bank account",
+    category: "payment",
+  },
 ];
 
+const categoryColors: Record<string, string> = {
+  auth: "bg-blue-500/10 text-blue-500",
+  course: "bg-green-500/10 text-green-500",
+  user: "bg-purple-500/10 text-purple-500",
+  payment: "bg-yellow-500/10 text-yellow-500",
+  system: "bg-gray-500/10 text-gray-500",
+};
+
 export default function AdminAuditLogPage() {
-    const [entries] = useState<AuditEntry[]>(mockAuditLog);
-    const [loading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [severityFilter, setSeverityFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
-    const filteredEntries = entries.filter((entry) => {
-        const matchesSearch =
-            entry.action.toLowerCase().includes(search.toLowerCase()) ||
-            entry.actor.toLowerCase().includes(search.toLowerCase()) ||
-            entry.target.toLowerCase().includes(search.toLowerCase()) ||
-            entry.details.toLowerCase().includes(search.toLowerCase());
-        const matchesSeverity =
-            severityFilter === "all" || entry.severity === severityFilter;
-        return matchesSearch && matchesSeverity;
-    });
+  const filteredLogs = mockAuditLog.filter((entry) => {
+    const matchesSearch =
+      entry.user.toLowerCase().includes(search.toLowerCase()) ||
+      entry.action.toLowerCase().includes(search.toLowerCase()) ||
+      entry.details.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || entry.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
-    const getSeverityBadge = (severity: string) => {
-        switch (severity) {
-            case "critical":
-                return <Badge className="bg-red-500/10 text-red-600">Critical</Badge>;
-            case "warning":
-                return (
-                    <Badge className="bg-amber-500/10 text-amber-600">Warning</Badge>
-                );
-            default:
-                return <Badge className="bg-blue-500/10 text-blue-600">Info</Badge>;
-        }
-    };
+  const formatTime = (date: string) => {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    const getRoleBadge = (role: string) => {
-        switch (role) {
-            case "admin":
-                return (
-                    <Badge variant="outline" className="text-xs">
-                        Admin
-                    </Badge>
-                );
-            case "tutor":
-                return (
-                    <Badge variant="outline" className="text-xs">
-                        Tutor
-                    </Badge>
-                );
-            case "system":
-                return (
-                    <Badge variant="outline" className="text-xs">
-                        System
-                    </Badge>
-                );
-            default:
-                return (
-                    <Badge variant="outline" className="text-xs">
-                        Student
-                    </Badge>
-                );
-        }
-    };
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
 
-    const formatTimestamp = (ts: string) => {
-        const date = new Date(ts);
-        return {
-            date: date.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-            }),
-            time: date.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-            }),
-        };
-    };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-[400px] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="container py-8">
-            <div className="mb-8">
-                <h1 className="mb-2 font-bold font-display text-3xl">Audit Log</h1>
-                <p className="text-muted-foreground">
-                    Track all platform activities and changes
-                </p>
-            </div>
-
-            {/* Filters */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-                <div className="relative flex-1">
-                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Search actions, actors, targets..."
-                        className="pl-10"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                    <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Severity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Severity</SelectItem>
-                        <SelectItem value="info">Info</SelectItem>
-                        <SelectItem value="warning">Warning</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
-            {/* Log Entries */}
-            <Card>
-                <CardContent className="p-0">
-                    {filteredEntries.length > 0 ? (
-                        <div className="divide-y">
-                            {filteredEntries.map((entry) => {
-                                const { date, time } = formatTimestamp(entry.timestamp);
-                                return (
-                                    <div
-                                        key={entry.id}
-                                        className="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-muted/50"
-                                    >
-                                        <div className="mt-0.5 shrink-0">
-                                            {getSeverityBadge(entry.severity)}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="mb-1 flex items-center gap-2">
-                                                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                                                    {entry.action}
-                                                </code>
-                                                {getRoleBadge(entry.actorRole)}
-                                            </div>
-                                            <p className="text-sm">
-                                                <span className="font-medium">{entry.actor}</span>
-                                                {" → "}
-                                                <span className="text-muted-foreground">
-                                                    {entry.target}
-                                                </span>
-                                            </p>
-                                            <p className="mt-1 text-muted-foreground text-xs">
-                                                {entry.details}
-                                            </p>
-                                        </div>
-                                        <div className="shrink-0 text-right">
-                                            <p className="text-muted-foreground text-xs">{date}</p>
-                                            <p className="text-muted-foreground text-xs">{time}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="py-12 text-center">
-                            <ClipboardList className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                            <h3 className="mb-2 font-semibold">No entries found</h3>
-                            <p className="text-muted-foreground">
-                                Try adjusting your search or filter
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+  return (
+    <div className="container py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="mb-2 font-bold font-display text-3xl">Audit Log</h1>
+          <p className="text-muted-foreground">Track all platform activity</p>
         </div>
-    );
+        <Button variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Export CSV
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search logs..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="auth">Auth</SelectItem>
+                <SelectItem value="course">Course</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="payment">Payment</SelectItem>
+                <SelectItem value="system">System</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Activity Log
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredLogs.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                    {formatTime(entry.timestamp)}
+                  </TableCell>
+                  <TableCell className="font-medium">{entry.user}</TableCell>
+                  <TableCell>{entry.action}</TableCell>
+                  <TableCell>
+                    <Badge className={categoryColors[entry.category] || ""}>
+                      {entry.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground text-sm">
+                    {entry.details}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredLogs.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-12 text-center text-muted-foreground"
+                  >
+                    No log entries found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

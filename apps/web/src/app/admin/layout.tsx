@@ -1,18 +1,16 @@
-import { Header } from "@/components/layout/Header";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { Header } from "@/components/layout/Header";
+import { DashboardShell } from "@/components/dashboard-shell";
 
 export default function AdminLayout({
-    children,
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-    return (
-        <div className="min-h-screen bg-background">
-            <Header />
-            <div className="flex">
-                <AdminSidebar />
-                <main className="flex-1 px-4 pt-4 pb-8 lg:pl-72">{children}</main>
-            </div>
-        </div>
-    );
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <DashboardShell sidebar={<AdminSidebar />}>{children}</DashboardShell>
+    </div>
+  );
 }

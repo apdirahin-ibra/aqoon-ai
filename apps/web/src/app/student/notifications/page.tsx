@@ -1,219 +1,200 @@
 "use client";
 
 import {
-	AlertCircle,
-	Bell,
-	BookOpen,
-	Check,
-	CheckCheck,
-	DollarSign,
-	Loader2,
-	MessageCircle,
-	Trophy,
+  Award,
+  Bell,
+  BookOpen,
+  Check,
+  CheckCheck,
+  Info,
+  Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Notification {
-	id: string;
-	type: "course" | "achievement" | "message" | "payment" | "alert";
-	title: string;
-	message: string;
-	link: string | null;
-	isRead: boolean;
-	createdAt: string;
+  id: string;
+  type: "course" | "achievement" | "message" | "system";
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
 }
 
 const mockNotifications: Notification[] = [
-	{
-		id: "1",
-		type: "course",
-		title: "New lesson available",
-		message: "Python Basics: Lesson 5 - Functions is now live!",
-		link: "/student/learn/1/5",
-		isRead: false,
-		createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-	},
-	{
-		id: "2",
-		type: "achievement",
-		title: "Achievement unlocked!",
-		message: "You've completed 5 lessons in a row. Keep it up!",
-		link: "/student/certificates",
-		isRead: false,
-		createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-	},
-	{
-		id: "3",
-		type: "message",
-		title: "New message from Sarah",
-		message: "Thanks for the help with my question!",
-		link: "/student/messages",
-		isRead: true,
-		createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-	},
-	{
-		id: "4",
-		type: "payment",
-		title: "Payment successful",
-		message: "Your payment for Web Development course was processed.",
-		link: "/student/my-courses",
-		isRead: true,
-		createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-	},
-	{
-		id: "5",
-		type: "alert",
-		title: "Course ending soon",
-		message: "React Mastery course ends in 3 days. Complete it now!",
-		link: "/student/learn/2/1",
-		isRead: true,
-		createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-	},
+  {
+    id: "1",
+    type: "course",
+    title: "New lesson available",
+    message: "A new lesson has been added to 'Introduction to Python'",
+    timestamp: "2024-02-10T10:00:00Z",
+    read: false,
+  },
+  {
+    id: "2",
+    type: "achievement",
+    title: "Certificate earned!",
+    message: "You've completed 'Advanced JavaScript Patterns'",
+    timestamp: "2024-02-09T14:30:00Z",
+    read: false,
+  },
+  {
+    id: "3",
+    type: "message",
+    title: "New message from tutor",
+    message: "Dr. Smith replied to your question about React hooks",
+    timestamp: "2024-02-08T09:15:00Z",
+    read: true,
+  },
+  {
+    id: "4",
+    type: "system",
+    title: "Account verified",
+    message: "Your email has been successfully verified",
+    timestamp: "2024-02-07T16:00:00Z",
+    read: true,
+  },
 ];
 
+const typeConfig = {
+  course: {
+    icon: BookOpen,
+    gradient: "bg-linear-to-br from-primary/20 to-primary/5",
+    color: "text-primary",
+  },
+  achievement: {
+    icon: Award,
+    gradient: "bg-linear-to-br from-warning/20 to-warning/5",
+    color: "text-warning",
+  },
+  message: {
+    icon: MessageSquare,
+    gradient: "bg-linear-to-br from-success/20 to-success/5",
+    color: "text-success",
+  },
+  system: {
+    icon: Info,
+    gradient: "bg-linear-to-br from-muted-foreground/20 to-muted-foreground/5",
+    color: "text-muted-foreground",
+  },
+};
+
 export default function NotificationsPage() {
-	const [notifications, setNotifications] =
-		useState<Notification[]>(mockNotifications);
-	const [loading] = useState(false);
+  const [notifications, setNotifications] =
+    useState<Notification[]>(mockNotifications);
+  const [loading] = useState(false);
 
-	const getIcon = (type: Notification["type"]) => {
-		switch (type) {
-			case "course":
-				return <BookOpen className="h-5 w-5 text-primary" />;
-			case "achievement":
-				return <Trophy className="h-5 w-5 text-yellow-500" />;
-			case "message":
-				return <MessageCircle className="h-5 w-5 text-green-500" />;
-			case "payment":
-				return <DollarSign className="h-5 w-5 text-green-500" />;
-			case "alert":
-				return <AlertCircle className="h-5 w-5 text-red-500" />;
-			default:
-				return <Bell className="h-5 w-5 text-muted-foreground" />;
-		}
-	};
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-	const formatTime = (date: string) => {
-		const d = new Date(date);
-		const now = new Date();
-		const diff = now.getTime() - d.getTime();
-		const minutes = Math.floor(diff / (1000 * 60));
-		const hours = Math.floor(diff / (1000 * 60 * 60));
-		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const markAsRead = (id: string) => {
+    setNotifications(
+      notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+  };
 
-		if (minutes < 60) return `${minutes}m ago`;
-		if (hours < 24) return `${hours}h ago`;
-		if (days < 7) return `${days}d ago`;
-		return d.toLocaleDateString();
-	};
+  const markAllAsRead = () => {
+    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+  };
 
-	const markAsRead = (id: string) => {
-		setNotifications((prev) =>
-			prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-		);
-	};
+  const formatTime = (date: string) => {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
-	const markAllAsRead = () => {
-		setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-	};
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-	const unreadCount = notifications.filter((n) => !n.isRead).length;
+  return (
+    <div className="container py-8">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="mb-1 font-bold font-display text-2xl">
+            Notifications
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {unreadCount > 0
+              ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+              : "All caught up!"}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={markAllAsRead}
+            className="rounded-xl text-xs"
+          >
+            <CheckCheck className="mr-1 h-3.5 w-3.5" />
+            Mark all read
+          </Button>
+        )}
+      </div>
 
-	if (loading) {
-		return (
-			<div className="flex min-h-[400px] items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-primary" />
-			</div>
-		);
-	}
-
-	return (
-		<div className="container py-8">
-			<div className="mb-8 flex items-center justify-between">
-				<div>
-					<h1 className="mb-2 font-bold font-display text-3xl">
-						Notifications
-					</h1>
-					<p className="text-muted-foreground">
-						{unreadCount > 0
-							? `${unreadCount} unread notifications`
-							: "All caught up!"}
-					</p>
-				</div>
-				{unreadCount > 0 && (
-					<Button variant="outline" onClick={markAllAsRead}>
-						<CheckCheck className="mr-2 h-4 w-4" />
-						Mark all as read
-					</Button>
-				)}
-			</div>
-
-			<Card>
-				<CardContent className="p-0">
-					{notifications.length > 0 ? (
-						<div className="divide-y">
-							{notifications.map((notification) => (
-								<div
-									key={notification.id}
-									className={`flex items-start gap-4 p-4 transition-colors hover:bg-muted/50 ${
-										!notification.isRead ? "bg-primary/5" : ""
-									}`}
-								>
-									<div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-										{getIcon(notification.type)}
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="mb-1 flex items-center gap-2">
-											<p
-												className={`font-medium ${
-													!notification.isRead ? "" : "text-muted-foreground"
-												}`}
-											>
-												{notification.title}
-											</p>
-											{!notification.isRead && (
-												<div className="h-2 w-2 rounded-full bg-primary" />
-											)}
-										</div>
-										<p className="line-clamp-2 text-muted-foreground text-sm">
-											{notification.message}
-										</p>
-										<p className="mt-1 text-muted-foreground text-xs">
-											{formatTime(notification.createdAt)}
-										</p>
-									</div>
-									<div className="flex items-center gap-2">
-										{notification.link && (
-											<Button asChild variant="ghost" size="sm">
-												<a href={notification.link}>View</a>
-											</Button>
-										)}
-										{!notification.isRead && (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => markAsRead(notification.id)}
-											>
-												<Check className="h-4 w-4" />
-											</Button>
-										)}
-									</div>
-								</div>
-							))}
-						</div>
-					) : (
-						<div className="py-12 text-center">
-							<Bell className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-							<h3 className="mb-2 font-semibold text-xl">No notifications</h3>
-							<p className="text-muted-foreground">
-								You're all caught up! New notifications will appear here.
-							</p>
-						</div>
-					)}
-				</CardContent>
-			</Card>
-		</div>
-	);
+      <Card className="rounded-2xl shadow-sm">
+        <CardContent className="divide-y p-0">
+          {notifications.map((notification, i) => {
+            const config = typeConfig[notification.type];
+            const Icon = config.icon;
+            return (
+              <div
+                key={notification.id}
+                className={`flex items-start gap-3 p-3 transition-colors hover:bg-muted/30 animate-in fade-in slide-in-from-bottom-2 ${
+                  !notification.read ? "bg-primary/5" : ""
+                }`}
+                style={{
+                  animationDelay: `${i * 50}ms`,
+                  animationFillMode: "backwards",
+                }}
+              >
+                <div
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.gradient}`}
+                >
+                  <Icon className={`h-4 w-4 ${config.color}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p
+                        className={`text-sm ${!notification.read ? "font-semibold" : "font-medium"}`}
+                      >
+                        {notification.title}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {notification.message}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-muted-foreground text-[10px]">
+                      {formatTime(notification.timestamp)}
+                    </span>
+                  </div>
+                </div>
+                {!notification.read && (
+                  <button
+                    type="button"
+                    onClick={() => markAsRead(notification.id)}
+                    className="mt-1 shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title="Mark as read"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
