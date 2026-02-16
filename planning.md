@@ -325,3 +325,226 @@ export const auth = betterAuth({
 4.  **Backend Functions:** Implement `courses.ts` and `enrollments.ts` first.
 5.  **Frontend:** Copy `lovable-project/src/pages/Courses.tsx` -> `apps/web/app/courses/page.tsx` and refactor to use Convex hooks.
 6.  **Verify:** Test **Enrollment Logic** manually to ensure Premium courses cannot be accessed for free.
+
+---
+
+## 6. Current Backend State (as of 2026-02-16)
+
+| Component     | Status   | Notes                                      |
+| ------------- | -------- | ------------------------------------------ |
+| Convex setup  | ✅ Done  | `pnpm dev` works, deployed                 |
+| Better-Auth   | ✅ Done  | Email/password + Expo plugin configured    |
+| HTTP routes   | ✅ Done  | Auth routes registered in `http.ts`        |
+| Schema        | ❌ Empty | `defineSchema({})` — no tables defined     |
+| API functions | ❌ Empty | Only `healthCheck` and `privateData` exist |
+| Frontend data | ⚠️ Mock  | All pages use hardcoded `useState` arrays  |
+
+---
+
+## 7. Phased Backend Implementation Plan
+
+### Phase 1: Database Schema (`convex/schema.ts`)
+
+Implement all tables from Section 1 above, plus these additional tables:
+
+```typescript
+// Forum Posts
+forumPosts: defineTable({
+  courseId: v.id("courses"),
+  userId: v.id("users"),
+  title: v.string(),
+  content: v.string(),
+  createdAt: v.number(),
+})
+  .index("by_course", ["courseId"])
+  .index("by_user", ["userId"]),
+
+// Forum Replies
+forumReplies: defineTable({
+  postId: v.id("forumPosts"),
+  userId: v.id("users"),
+  content: v.string(),
+  createdAt: v.number(),
+}).index("by_post", ["postId"]),
+
+// Notifications
+notifications: defineTable({
+  userId: v.id("users"),
+  type: v.string(), // 'enrollment', 'quiz_result', 'certificate', 'forum_reply'
+  title: v.string(),
+  message: v.string(),
+  isRead: v.boolean(),
+  link: v.optional(v.string()),
+  createdAt: v.number(),
+}).index("by_user", ["userId"]),
+
+// Messages (Direct Messaging)
+messages: defineTable({
+  senderId: v.id("users"),
+  receiverId: v.id("users"),
+  content: v.string(),
+  isRead: v.boolean(),
+  createdAt: v.number(),
+})
+  .index("by_sender", ["senderId"])
+  .index("by_receiver", ["receiverId"]),
+```
+
+**Deliverable:** Run `pnpm run dev --filter=backend` → schema deploys successfully.
+
+---
+
+### Phase 2: Core API Functions
+
+#### `convex/users.ts`
+
+- `query("current")` — get authenticated user with role
+- `mutation("updateProfile")` — update name, image
+- `mutation("updateRole")` — admin-only role change
+- `query("getById")` — public profile lookup
+
+#### `convex/courses.ts`
+
+- `query("listPublic")` — published courses, filter by category/level/search
+- `query("get")` — full detail with lesson count, avg rating, enrollment count
+- `query("listByTutor")` — tutor's own courses
+- `mutation("create")` — tutor/admin only
+- `mutation("update")` — owner or admin
+- `mutation("delete")` — admin only
+- `mutation("publish")` / `mutation("unpublish")`
+
+#### `convex/lessons.ts`
+
+- `query("listByCourse")` — ordered lesson list (title, duration, preview flag)
+- `query("get")` — full content, auth-gated (enrolled / preview / tutor / admin)
+- `mutation("create")`, `mutation("update")`, `mutation("delete")`
+- `mutation("reorder")` — update `orderIndex` for drag-and-drop
+
+**Deliverable:** Course catalog + detail pages load real data. Tutor can create/edit courses.
+
+---
+
+### Phase 3: Enrollment, Progress & Quizzes
+
+#### `convex/enrollments.ts`
+
+- `mutation("enroll")` — **Critical:** verify payment for premium, allow free immediately
+- `query("check")` — is current user enrolled in course?
+- `query("myEnrollments")` — user's enrolled courses with progress %
+
+#### `convex/progress.ts`
+
+- `mutation("markComplete")` — mark lesson done
+- `mutation("toggleComplete")` — toggle lesson completion status
+- `query("getCourseProgress")` — % complete per course (completed lessons / total)
+
+#### `convex/quizzes.ts`
+
+- `query("getByLesson")` — quiz questions for a lesson
+- `mutation("submit")` — grade answers, calculate score, save attempt
+- `query("getAttempts")` — user's past quiz attempts with scores
+
+**Deliverable:** Full learning flow works: Enroll → Read Lesson → Mark Complete → Take Quiz → See Results.
+
+---
+
+### Phase 4: Social Features
+
+#### `convex/reviews.ts`
+
+- `mutation("create")` — enrolled users only, one review per course
+- `query("listByCourse")` — reviews with user name/image
+- `mutation("delete")` — own review or admin
+
+#### `convex/wishlist.ts`
+
+- `mutation("toggle")` — add/remove from wishlist
+- `query("list")` — user's wishlisted courses
+
+#### `convex/forum.ts`
+
+- `mutation("createPost")`, `mutation("createReply")`
+- `query("listPosts")` — by course, with reply counts
+- `query("getPost")` — single post with all replies
+
+#### `convex/messages.ts`
+
+- `mutation("send")`, `query("listConversations")`, `query("getThread")`
+
+#### `convex/notifications.ts`
+
+- `mutation("create")` — internal, triggered by other functions
+- `query("list")` — user's notifications
+- `mutation("markRead")`, `mutation("markAllRead")`
+
+**Deliverable:** Forum, reviews, wishlist, messages, and notifications all functional.
+
+---
+
+### Phase 5: Payments, Certificates & Dashboards
+
+#### `convex/payments.ts`
+
+- `action("createCheckoutSession")` — Stripe Checkout session
+- `internalMutation("fulfill")` — Stripe webhook handler → marks payment + auto-enrolls
+- Add Stripe webhook route to `http.ts`
+
+#### `convex/certificates.ts`
+
+- `mutation("generate")` — validate 100% progress, create certificate record
+- `query("listMine")` — user's certificates
+- `query("verify")` — public verification by code
+
+#### `convex/payouts.ts`
+
+- `query("getMyPayouts")` — tutor payout history
+- `action("requestPayout")` — trigger Stripe Connect transfer
+
+#### `convex/dashboard.ts`
+
+- `query("studentStats")` — enrolled/completed counts, recent activity, study time
+- `query("tutorStats")` — total students, revenue, top courses, recent enrollments
+- `query("adminStats")` — total users, courses, revenue, system overview
+
+**Deliverable:** Money flows work. Dashboards show real aggregated data.
+
+---
+
+### Phase 6: AI Features
+
+#### `convex/ai.ts`
+
+- `action("generateQuizFeedback")` — AI analysis of wrong answers with explanations
+- `action("generateStudyPlan")` — personalized study plan based on goals/level
+- `action("chatWithTutor")` — RAG-style Q&A grounded in lesson content
+- `action("skillAssessment")` — AI-powered skill evaluation
+
+**Dependencies:** OpenAI or Google Gemini API key required.
+
+**Deliverable:** AI-powered features enhance learning experience.
+
+---
+
+## 8. Frontend Wiring Strategy
+
+After each backend phase, replace mock data in corresponding frontend pages:
+
+| Backend Phase      | Frontend Pages to Wire                                                    |
+| ------------------ | ------------------------------------------------------------------------- |
+| Phase 2 (Courses)  | `/courses`, `/courses/[id]`, `/tutor/courses`, `/tutor/courses/editor`    |
+| Phase 3 (Learning) | `/student/learn/[courseId]/[lessonId]`, `/student/my-courses`, quiz pages |
+| Phase 4 (Social)   | Forum, wishlist, messages, notifications pages                            |
+| Phase 5 (Money)    | Payment flow, certificates, all 3 dashboards                              |
+| Phase 6 (AI)       | Study plan, skill assessment, AI chat component                           |
+
+**Pattern:** Replace `useState(mockData)` → `useQuery(api.module.functionName)` and `useMutation(api.module.functionName)`.
+
+---
+
+## 9. Open Questions
+
+1. **Payments:** Stripe or alternative provider?
+2. **AI Provider:** OpenAI (GPT-4) or Google Gemini?
+3. **File Storage:** Convex Storage for course thumbnails, lesson attachments, certificate PDFs?
+4. **Native app:** Wire `apps/native` alongside web, or web-first?
+5. **Email notifications:** SendGrid, Resend, or Convex built-in?
