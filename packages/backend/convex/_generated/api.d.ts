@@ -9,9 +9,24 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as certificates from "../certificates.js";
+import type * as courses from "../courses.js";
+import type * as dashboard from "../dashboard.js";
+import type * as enrollments from "../enrollments.js";
+import type * as forum from "../forum.js";
 import type * as healthCheck from "../healthCheck.js";
+import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as lessons from "../lessons.js";
+import type * as messagesApi from "../messagesApi.js";
+import type * as notifications from "../notifications.js";
+import type * as payments from "../payments.js";
 import type * as privateData from "../privateData.js";
+import type * as progress from "../progress.js";
+import type * as quizzes from "../quizzes.js";
+import type * as reviews from "../reviews.js";
+import type * as users from "../users.js";
+import type * as wishlist from "../wishlist.js";
 
 import type {
   ApiFromModules,
@@ -21,9 +36,24 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  certificates: typeof certificates;
+  courses: typeof courses;
+  dashboard: typeof dashboard;
+  enrollments: typeof enrollments;
+  forum: typeof forum;
   healthCheck: typeof healthCheck;
+  helpers: typeof helpers;
   http: typeof http;
+  lessons: typeof lessons;
+  messagesApi: typeof messagesApi;
+  notifications: typeof notifications;
+  payments: typeof payments;
   privateData: typeof privateData;
+  progress: typeof progress;
+  quizzes: typeof quizzes;
+  reviews: typeof reviews;
+  users: typeof users;
+  wishlist: typeof wishlist;
 }>;
 
 /**

@@ -1,6 +1,6 @@
 import { expo } from "@better-auth/expo";
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex } from "@convex-dev/better-auth/plugins";
+import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
@@ -19,7 +19,7 @@ function createAuth(ctx: GenericCtx<DataModel>) {
 			siteUrl,
 			nativeAppUrl,
 			...(process.env.NODE_ENV === "development"
-				? ["exp://", "exp://**", "exp://192.168.*.*:*/**"]
+				? ["exp://", "exp://**", "exp://192.168.*.*:*/**", "http://localhost:3000"]
 				: []),
 		],
 		database: authComponent.adapter(ctx),
@@ -27,8 +27,15 @@ function createAuth(ctx: GenericCtx<DataModel>) {
 			enabled: true,
 			requireEmailVerification: false,
 		},
+		socialProviders: {
+			google: {
+				clientId: process.env.GOOGLE_CLIENT_ID!,
+				clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+			},
+		},
 		plugins: [
 			expo(),
+			crossDomain({ siteUrl }),
 			convex({
 				authConfig,
 				jwksRotateOnTokenGenerationError: true,
