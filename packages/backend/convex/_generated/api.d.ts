@@ -25,6 +25,7 @@ import type * as privateData from "../privateData.js";
 import type * as progress from "../progress.js";
 import type * as quizzes from "../quizzes.js";
 import type * as reviews from "../reviews.js";
+import type * as seed from "../seed.js";
 import type * as users from "../users.js";
 import type * as wishlist from "../wishlist.js";
 
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   progress: typeof progress;
   quizzes: typeof quizzes;
   reviews: typeof reviews;
+  seed: typeof seed;
   users: typeof users;
   wishlist: typeof wishlist;
 }>;

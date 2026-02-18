@@ -15,106 +15,21 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { use } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-interface Course {
-  id: string;
-  title: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  category: string;
-  level: string;
-  isPremium: boolean;
-  priceCents: number | null;
-  tutorName: string | null;
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  orderIndex: number;
-  durationMinutes: number | null;
-  isPreview: boolean;
-}
-
-const mockCourse: Course = {
-  id: "1",
-  title: "Introduction to Python Programming",
-  description:
-    "Learn Python from scratch with hands-on projects. This comprehensive course covers everything from basic syntax to advanced concepts like object-oriented programming.",
-  thumbnailUrl: null,
-  category: "coding",
-  level: "beginner",
-  isPremium: false,
-  priceCents: 0,
-  tutorName: "John Smith",
-};
-
-const mockLessons: Lesson[] = [
-  {
-    id: "1",
-    title: "Introduction to Python",
-    orderIndex: 0,
-    durationMinutes: 15,
-    isPreview: true,
-  },
-  {
-    id: "2",
-    title: "Variables and Data Types",
-    orderIndex: 1,
-    durationMinutes: 20,
-    isPreview: true,
-  },
-  {
-    id: "3",
-    title: "Control Flow",
-    orderIndex: 2,
-    durationMinutes: 25,
-    isPreview: false,
-  },
-  {
-    id: "4",
-    title: "Functions",
-    orderIndex: 3,
-    durationMinutes: 30,
-    isPreview: false,
-  },
-  {
-    id: "5",
-    title: "Lists and Tuples",
-    orderIndex: 4,
-    durationMinutes: 25,
-    isPreview: false,
-  },
-  {
-    id: "6",
-    title: "Dictionaries and Sets",
-    orderIndex: 5,
-    durationMinutes: 20,
-    isPreview: false,
-  },
-  {
-    id: "7",
-    title: "Object-Oriented Programming",
-    orderIndex: 6,
-    durationMinutes: 35,
-    isPreview: false,
-  },
-  {
-    id: "8",
-    title: "File Handling",
-    orderIndex: 7,
-    durationMinutes: 20,
-    isPreview: false,
-  },
-];
-
 const categoryStyles: Record<string, string> = {
+  "Web Development": "bg-blue-500/10 text-blue-500",
+  "Data Science": "bg-green-500/10 text-green-500",
+  "Backend Development": "bg-purple-500/10 text-purple-500",
   coding: "bg-blue-500/10 text-blue-500",
   languages: "bg-green-500/10 text-green-500",
   art: "bg-purple-500/10 text-purple-500",
@@ -127,11 +42,17 @@ export default function CourseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [course] = useState<Course | null>(mockCourse);
-  const [lessons] = useState<Lesson[]>(mockLessons);
-  const [loading] = useState(false);
-  const [isEnrolled] = useState(true);
-  const [enrolledCount] = useState(120);
+  const { id } = use(params);
+  const courseId = id as Id<"courses">;
+
+  const course = useQuery(api.courses.get, { courseId });
+  const lessons = useQuery(api.lessons.listByCourse, { courseId });
+
+  // enrollments.check requires auth — if the user is not logged in,
+  // the server-side requireAuth throws and useQuery returns undefined.
+  const enrollmentStatus = useQuery(api.enrollments.check, { courseId });
+  const isEnrolled = enrollmentStatus?.enrolled ?? false;
+  const enroll = useMutation(api.enrollments.enroll);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -140,18 +61,48 @@ export default function CourseDetailPage({
     }).format(cents / 100);
   };
 
-  const totalDuration = lessons.reduce(
-    (sum, l) => sum + (l.durationMinutes || 0),
-    0,
-  );
-
-  if (loading || !course) {
+  // Loading state
+  if (course === undefined) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen flex-col bg-background">
+        <div className="bg-primary py-12 text-primary-foreground">
+          <div className="container">
+            <Skeleton className="mb-4 h-8 w-32 bg-white/20" />
+            <div className="grid gap-8 lg:grid-cols-3">
+              <div className="space-y-4 lg:col-span-2">
+                <Skeleton className="h-6 w-40 bg-white/20" />
+                <Skeleton className="h-10 w-full bg-white/20" />
+                <Skeleton className="h-20 w-full bg-white/20" />
+              </div>
+              <Skeleton className="h-64 rounded-xl bg-white/20" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
+
+  // Course not found
+  if (course === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <BookOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h2 className="mb-2 font-bold text-xl">Course Not Found</h2>
+          <p className="mb-4 text-muted-foreground">
+            This course doesn&apos;t exist or has been removed.
+          </p>
+          <Button asChild>
+            <Link href="/courses">Browse Courses</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalDuration = course.totalDuration ?? 0;
+  const lessonsList = lessons ?? [];
+  const firstLessonId = lessonsList.length > 0 ? lessonsList[0]._id : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -163,9 +114,12 @@ export default function CourseDetailPage({
               variant="ghost"
               size="sm"
               className="text-primary-foreground hover:bg-white/10"
+              asChild
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Courses
+              <Link href="/courses">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Courses
+              </Link>
             </Button>
           </div>
 
@@ -174,7 +128,7 @@ export default function CourseDetailPage({
               <div className="mb-4 flex items-center gap-2">
                 <span
                   className={cn(
-                    "r2.5 px- py-1 font-mediumounded-full text-xs capitalize",
+                    "rounded-full px-2.5 py-1 font-medium text-xs capitalize",
                     categoryStyles[course.category] ||
                       "bg-muted text-muted-foreground",
                   )}
@@ -197,7 +151,7 @@ export default function CourseDetailPage({
               <div className="flex flex-wrap items-center gap-6 text-sm opacity-80">
                 <span className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
-                  {lessons.length} lessons
+                  {course.lessonCount} lessons
                 </span>
                 <span className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
@@ -205,8 +159,14 @@ export default function CourseDetailPage({
                 </span>
                 <span className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  {enrolledCount} enrolled
+                  {course.enrollmentCount} enrolled
                 </span>
+                {course.avgRating > 0 && (
+                  <span className="flex items-center gap-2">
+                    <Star className="h-4 w-4 fill-current" />
+                    {course.avgRating.toFixed(1)} ({course.reviewCount} reviews)
+                  </span>
+                )}
                 {course.tutorName && (
                   <span className="flex items-center gap-2">
                     By {course.tutorName}
@@ -237,7 +197,13 @@ export default function CourseDetailPage({
                         0% completed
                       </p>
                       <Button className="mb-3 w-full rounded-xl" asChild>
-                        <Link href={`/student/learn/${course.id}/1`}>
+                        <Link
+                          href={
+                            firstLessonId
+                              ? `/student/learn/${courseId}/${firstLessonId}`
+                              : `/courses/${courseId}`
+                          }
+                        >
                           Start Learning
                         </Link>
                       </Button>
@@ -250,7 +216,7 @@ export default function CourseDetailPage({
                           className="h-auto flex-col rounded-xl py-2"
                           asChild
                         >
-                          <Link href={`/student/courses/${course.id}/forum`}>
+                          <Link href={`/student/courses/${courseId}/forum`}>
                             <MessageSquare className="mb-1 h-4 w-4" />
                             <span className="text-xs">Forum</span>
                           </Link>
@@ -261,9 +227,7 @@ export default function CourseDetailPage({
                           className="h-auto flex-col rounded-xl py-2"
                           asChild
                         >
-                          <Link
-                            href={`/student/courses/${course.id}/resources`}
-                          >
+                          <Link href={`/student/courses/${courseId}/resources`}>
                             <FolderOpen className="mb-1 h-4 w-4" />
                             <span className="text-xs">Resources</span>
                           </Link>
@@ -274,7 +238,7 @@ export default function CourseDetailPage({
                           className="h-auto flex-col rounded-xl py-2"
                           asChild
                         >
-                          <Link href={`/student/courses/${course.id}/roadmap`}>
+                          <Link href={`/student/courses/${courseId}/roadmap`}>
                             <Map className="mb-1 h-4 w-4" />
                             <span className="text-xs">Roadmap</span>
                           </Link>
@@ -303,7 +267,24 @@ export default function CourseDetailPage({
                         )}
                       </div>
 
-                      <Button className="w-full">
+                      <Button
+                        className="w-full"
+                        onClick={async () => {
+                          try {
+                            await enroll({ courseId });
+                          } catch (err: unknown) {
+                            // If user is not logged in, redirect to sign-in
+                            const message =
+                              err instanceof Error ? err.message : "";
+                            if (
+                              message.includes("authentication") ||
+                              message.includes("Not authenticated")
+                            ) {
+                              window.location.href = "/auth/sign-in";
+                            }
+                          }
+                        }}
+                      >
                         {course.isPremium ? "Purchase Course" : "Enroll Now"}
                       </Button>
                     </>
@@ -319,47 +300,58 @@ export default function CourseDetailPage({
       <div className="container py-12">
         <h2 className="mb-6 font-bold font-display text-2xl">Course Content</h2>
 
-        <div className="space-y-3">
-          {lessons.map((lesson, index) => {
-            const canAccess = isEnrolled || lesson.isPreview;
+        {lessons === undefined ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton
+                key={`lesson-skel-${i}`}
+                className="h-16 w-full rounded-xl"
+              />
+            ))}
+          </div>
+        ) : lessonsList.length > 0 ? (
+          <div className="space-y-3">
+            {lessonsList.map((lesson, index) => {
+              const canAccess = isEnrolled || lesson.isPreview;
 
-            return (
-              <div
-                key={lesson.id}
-                className={cn(
-                  "flex items-center gap-4 rounded-xl border p-4 transition-colors",
-                  canAccess
-                    ? "cursor-pointer border-border hover:border-primary/30"
-                    : "border-border/50 opacity-60",
-                )}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  {canAccess ? (
-                    <Play className="h-5 w-5 text-primary" />
-                  ) : (
-                    <Lock className="h-5 w-5 text-muted-foreground" />
+              return (
+                <div
+                  key={lesson._id}
+                  className={cn(
+                    "flex items-center gap-4 rounded-xl border p-4 transition-colors",
+                    canAccess
+                      ? "cursor-pointer border-border hover:border-primary/30"
+                      : "border-border/50 opacity-60",
                   )}
-                </div>
-
-                <div className="flex-1">
-                  <h3 className="font-medium">
-                    {index + 1}. {lesson.title}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {lesson.durationMinutes || 10} min
-                    {lesson.isPreview && !isEnrolled && (
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        Preview
-                      </Badge>
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    {lesson.completed ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : canAccess ? (
+                      <Play className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Lock className="h-5 w-5 text-muted-foreground" />
                     )}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  </div>
 
-        {lessons.length === 0 && (
+                  <div className="flex-1">
+                    <h3 className="font-medium">
+                      {index + 1}. {lesson.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {lesson.durationMinutes || 10} min
+                      {lesson.isPreview && !isEnrolled && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Preview
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <Card>
             <CardContent className="py-12 text-center">
               <BookOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />

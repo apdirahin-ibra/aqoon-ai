@@ -41,7 +41,7 @@ export function Header() {
   };
 
   const getDashboardRoute = () => {
-    return "/dashboard";
+    return "/student";
   };
 
   return (

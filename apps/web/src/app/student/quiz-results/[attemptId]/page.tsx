@@ -12,94 +12,40 @@ import {
   Trophy,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { use, useState } from "react";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-interface Question {
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
+export default function QuizResultsPage({
+  params,
+}: {
+  params: Promise<{ attemptId: string }>;
+}) {
+  const { attemptId: attemptIdStr } = use(params);
+  const attemptId = attemptIdStr as Id<"quizAttempts">;
 
-interface QuizAttempt {
-  id: string;
-  score: number;
-  answers: Record<string, number>;
-  quiz: {
-    id: string;
-    title: string;
-    questions: Question[];
-    lesson: {
-      id: string;
-      title: string;
-      course: {
-        id: string;
-        title: string;
-      };
-    };
-  };
-}
-
-const mockAttempt: QuizAttempt = {
-  id: "1",
-  score: 75,
-  answers: { 0: 1, 1: 1, 2: 2, 3: 3 },
-  quiz: {
-    id: "q1",
-    title: "Python Basics Quiz",
-    questions: [
-      {
-        question: "What is the correct way to create a variable in Python?",
-        options: ["var x = 5", "x = 5", "let x = 5", "int x = 5"],
-        correctAnswer: 1,
-      },
-      {
-        question: "Which data type is used to store text in Python?",
-        options: ["int", "str", "char", "text"],
-        correctAnswer: 1,
-      },
-      {
-        question: "What is the output of print(2 + 3)?",
-        options: ["5", "23", "2 + 3", "Error"],
-        correctAnswer: 0,
-      },
-      {
-        question: "Which keyword is used to define a function in Python?",
-        options: ["function", "def", "func", "define"],
-        correctAnswer: 1,
-      },
-    ],
-    lesson: {
-      id: "l1",
-      title: "Python Basics",
-      course: {
-        id: "c1",
-        title: "Introduction to Python Programming",
-      },
-    },
-  },
-};
-
-export default function QuizResultsPage() {
-  const [attempt] = useState<QuizAttempt | null>(mockAttempt);
-  const [loading] = useState(false);
+  const attempt = useQuery(api.quizzes.getAttempt, { attemptId });
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
 
   const generateAIFeedback = () => {
     setLoadingFeedback(true);
+    // TODO: Wire to AI action in Phase 6
     setTimeout(() => {
       setAiFeedback(
-        "Great job! You have a solid understanding of Python basics. Focus on practicing more with functions and data types to improve further.",
+        "Great job! You have a solid understanding of the material. Focus on reviewing the questions you got wrong to improve further.",
       );
       setLoadingFeedback(false);
     }, 2000);
   };
 
-  if (loading || !attempt) {
+  if (attempt === undefined) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -107,9 +53,25 @@ export default function QuizResultsPage() {
     );
   }
 
+  if (attempt === null) {
+    return (
+      <div className="container py-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <Target className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <h1 className="mb-1 font-bold text-xl">Result Not Found</h1>
+          <p className="text-muted-foreground text-sm">
+            This quiz attempt could not be found.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const questions = attempt.quiz.questions;
   const answers = attempt.answers;
-  const correctCount = Math.round((attempt.score / 100) * questions.length);
+  const correctCount = questions.filter(
+    (q, i) => answers[i] === q.correctOptionIndex,
+  ).length;
   const scoreLevel =
     attempt.score >= 80
       ? "excellent"
@@ -117,13 +79,20 @@ export default function QuizResultsPage() {
         ? "good"
         : "needs_work";
 
+  const courseId = attempt.quiz.lesson?.course?._id;
+  const lessonId = attempt.quiz.lessonId;
+
   return (
     <div className="container py-8">
       <div className="mb-5">
         <div className="mb-1 flex items-center gap-1.5 text-muted-foreground text-xs">
-          <span>{attempt.quiz.lesson.course.title}</span>
-          <span>/</span>
-          <span>{attempt.quiz.lesson.title}</span>
+          {attempt.quiz.lesson?.course && (
+            <>
+              <span>{attempt.quiz.lesson.course.title}</span>
+              <span>/</span>
+            </>
+          )}
+          {attempt.quiz.lesson && <span>{attempt.quiz.lesson.title}</span>}
         </div>
         <h1 className="font-bold font-display text-2xl">
           {attempt.quiz.title} — Results
@@ -189,7 +158,7 @@ export default function QuizResultsPage() {
             <CardContent className="space-y-2">
               {questions.map((question, idx) => {
                 const userAnswer = answers[idx];
-                const isCorrect = userAnswer === question.correctAnswer;
+                const isCorrect = userAnswer === question.correctOptionIndex;
 
                 return (
                   <div
@@ -217,12 +186,13 @@ export default function QuizResultsPage() {
                               isCorrect ? "text-success" : "text-destructive"
                             }
                           >
-                            {question.options[userAnswer]}
+                            {question.options[userAnswer] ?? "No answer"}
                           </span>
                         </p>
                         {!isCorrect && (
                           <p className="mt-0.5 text-success text-[10px]">
-                            Correct: {question.options[question.correctAnswer]}
+                            Correct:{" "}
+                            {question.options[question.correctOptionIndex]}
                           </p>
                         )}
                       </div>
@@ -281,26 +251,42 @@ export default function QuizResultsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl text-xs"
-              >
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Retry Quiz
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl text-xs"
-              >
-                <BookOpen className="mr-1 h-3 w-3" />
-                Review Lesson
-              </Button>
-              <Button size="sm" className="w-full rounded-xl text-xs">
-                Continue Course
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
+              {courseId && lessonId && (
+                <>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-xl text-xs"
+                  >
+                    <Link href={`/student/learn/${courseId}/${lessonId}/quiz`}>
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                      Retry Quiz
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-xl text-xs"
+                  >
+                    <Link href={`/student/learn/${courseId}/${lessonId}`}>
+                      <BookOpen className="mr-1 h-3 w-3" />
+                      Review Lesson
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="w-full rounded-xl text-xs"
+                  >
+                    <Link href={`/courses/${courseId}`}>
+                      Continue Course
+                      <ArrowRight className="ml-1 h-3 w-3" />
+                    </Link>
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -11,116 +11,48 @@ import {
   Loader2,
   Play,
 } from "lucide-react";
-import { useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-interface Lesson {
-  id: string;
-  title: string;
-  content: string | null;
-  durationMinutes: number | null;
-  orderIndex: number;
-  isPreview: boolean;
-}
-
-interface Course {
-  id: string;
-  title: string;
-}
-
-const mockCourse: Course = {
-  id: "1",
-  title: "Introduction to Python Programming",
-};
-
-const mockLessons: Lesson[] = [
-  {
-    id: "1",
-    title: "Introduction to Python",
-    content:
-      "Welcome to Python! In this lesson, we'll cover the basics of Python programming...",
-    durationMinutes: 15,
-    orderIndex: 0,
-    isPreview: true,
-  },
-  {
-    id: "2",
-    title: "Variables and Data Types",
-    content:
-      "Learn about variables, strings, numbers, and other data types in Python...",
-    durationMinutes: 20,
-    orderIndex: 1,
-    isPreview: false,
-  },
-  {
-    id: "3",
-    title: "Control Flow",
-    content: "Understanding if statements, loops, and conditional logic...",
-    durationMinutes: 25,
-    orderIndex: 2,
-    isPreview: false,
-  },
-  {
-    id: "4",
-    title: "Functions",
-    content: "Learn how to define and call functions in Python...",
-    durationMinutes: 30,
-    orderIndex: 3,
-    isPreview: false,
-  },
-];
-
 export default function LessonViewerPage({
   params,
 }: {
   params: Promise<{ courseId: string; lessonId: string }>;
 }) {
-  const [resolvedParams] = useState<{ courseId: string; lessonId: string }>({
-    courseId: "1",
-    lessonId: "1",
-  });
-  const [course] = useState<Course | null>(mockCourse);
-  const [lessons] = useState<Lesson[]>(mockLessons);
-  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(
-    mockLessons[0],
-  );
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(
-    new Set(),
-  );
-  const [loading] = useState(false);
+  const { courseId: courseIdStr, lessonId: lessonIdStr } = use(params);
+  const courseId = courseIdStr as Id<"courses">;
+  const lessonId = lessonIdStr as Id<"lessons">;
+
+  const course = useQuery(api.courses.get, { courseId });
+  const lessons = useQuery(api.lessons.listByCourse, { courseId });
+  const currentLesson = useQuery(api.lessons.get, { lessonId });
+  const courseProgress = useQuery(api.progress.getCourseProgress, { courseId });
+  const toggleComplete = useMutation(api.progress.toggleComplete);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const toggleLessonComplete = async (lessonId: string) => {
-    const isCompleted = completedLessons.has(lessonId);
-
-    if (isCompleted) {
-      setCompletedLessons((prev) => {
-        const next = new Set(prev);
-        next.delete(lessonId);
-        return next;
-      });
-    } else {
-      setCompletedLessons((prev) => new Set([...prev, lessonId]));
-    }
-  };
-
-  const navigateToLesson = (lesson: Lesson) => {
-    setCurrentLesson(lesson);
-  };
-
-  const currentIndex = lessons.findIndex((l) => l.id === currentLesson?.id);
-  const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
+  const lessonsList = lessons ?? [];
+  const currentIndex = lessonsList.findIndex((l) => l._id === lessonId);
+  const prevLesson = currentIndex > 0 ? lessonsList[currentIndex - 1] : null;
   const nextLesson =
-    currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
-  const progressPercent =
-    lessons.length > 0 ? (completedLessons.size / lessons.length) * 100 : 0;
+    currentIndex < lessonsList.length - 1
+      ? lessonsList[currentIndex + 1]
+      : null;
+  const progressPercent = courseProgress?.progress ?? 0;
 
-  if (loading) {
+  // Check if current lesson is completed from the lessons list
+  const isCurrentCompleted =
+    lessonsList.find((l) => l._id === lessonId)?.completed ?? false;
+
+  if (course === undefined || lessons === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -129,7 +61,7 @@ export default function LessonViewerPage({
   }
 
   return (
-    <div className="fixed inset-0 top-[65px] z-40 flex flex-col bg-background">
+    <div className="fixed inset-0 top-0 z-40 flex flex-col bg-background">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside
@@ -140,7 +72,7 @@ export default function LessonViewerPage({
         >
           <div className="border-b p-4">
             <Link
-              href={"/student/my-courses" as any}
+              href="/student/my-courses"
               className="mb-2 flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -159,14 +91,13 @@ export default function LessonViewerPage({
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">
-            {lessons.map((lesson, index) => {
-              const isCompleted = completedLessons.has(lesson.id);
-              const isCurrent = lesson.id === currentLesson?.id;
+            {lessonsList.map((lesson, index) => {
+              const isCurrent = lesson._id === lessonId;
 
               return (
-                <button
-                  key={lesson.id}
-                  onClick={() => navigateToLesson(lesson)}
+                <Link
+                  key={lesson._id}
+                  href={`/student/learn/${courseId}/${lesson._id}`}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors",
                     isCurrent
@@ -175,7 +106,7 @@ export default function LessonViewerPage({
                   )}
                 >
                   <div className="mt-0.5">
-                    {isCompleted ? (
+                    {lesson.completed ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                     ) : isCurrent ? (
                       <Play className="h-5 w-5 text-primary" />
@@ -199,7 +130,7 @@ export default function LessonViewerPage({
                       </p>
                     )}
                   </div>
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -207,6 +138,7 @@ export default function LessonViewerPage({
 
         {/* Toggle Button */}
         <button
+          type="button"
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute top-1/2 left-0 z-10 -translate-y-1/2 rounded-r-lg border bg-card p-2 shadow-sm transition-colors hover:bg-muted"
           style={{ left: sidebarOpen ? "318px" : "0" }}
@@ -226,7 +158,7 @@ export default function LessonViewerPage({
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <p className="mb-1 text-muted-foreground text-sm">
-                    Lesson {currentIndex + 1} of {lessons.length}
+                    Lesson {currentIndex + 1} of {lessonsList.length}
                   </p>
                   <h1 className="font-bold font-display text-3xl">
                     {currentLesson.title}
@@ -235,10 +167,10 @@ export default function LessonViewerPage({
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="complete"
-                    checked={completedLessons.has(currentLesson.id)}
-                    onCheckedChange={() =>
-                      toggleLessonComplete(currentLesson.id)
-                    }
+                    checked={isCurrentCompleted}
+                    onCheckedChange={async () => {
+                      await toggleComplete({ lessonId });
+                    }}
                   />
                   <label htmlFor="complete" className="cursor-pointer text-sm">
                     Mark as complete
@@ -269,26 +201,29 @@ export default function LessonViewerPage({
               {/* Navigation */}
               <div className="mt-8 flex items-center justify-between">
                 {prevLesson ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => navigateToLesson(prevLesson)}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Previous: {prevLesson.title}
+                  <Button variant="outline" asChild>
+                    <Link href={`/student/learn/${courseId}/${prevLesson._id}`}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Previous: {prevLesson.title}
+                    </Link>
                   </Button>
                 ) : (
                   <div />
                 )}
 
                 {nextLesson ? (
-                  <Button onClick={() => navigateToLesson(nextLesson)}>
-                    Next: {nextLesson.title}
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button asChild>
+                    <Link href={`/student/learn/${courseId}/${nextLesson._id}`}>
+                      Next: {nextLesson.title}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
                 ) : (
-                  <Button>
-                    Finish Course
-                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                  <Button asChild>
+                    <Link href={`/courses/${courseId}`}>
+                      Finish Course
+                      <CheckCircle2 className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
                 )}
               </div>

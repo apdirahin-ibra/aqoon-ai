@@ -10,7 +10,11 @@ import {
   Trophy,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { use, useState } from "react";
+import Link from "next/link";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,92 +22,65 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
-interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
+export default function QuizPage({
+  params,
+}: {
+  params: Promise<{ courseId: string; lessonId: string }>;
+}) {
+  const { courseId: courseIdStr, lessonId: lessonIdStr } = use(params);
+  const courseId = courseIdStr as Id<"courses">;
+  const lessonId = lessonIdStr as Id<"lessons">;
 
-interface Quiz {
-  id: string;
-  title: string;
-  questions: Question[];
-  lessonId: string;
-}
+  const quiz = useQuery(api.quizzes.getByLesson, { lessonId });
+  const submitQuiz = useMutation(api.quizzes.submit);
 
-const mockQuiz: Quiz = {
-  id: "1",
-  title: "Python Basics Quiz",
-  questions: [
-    {
-      id: "q1",
-      question: "What is the correct way to create a variable in Python?",
-      options: ["var x = 5", "x = 5", "let x = 5", "int x = 5"],
-      correctAnswer: 1,
-    },
-    {
-      id: "q2",
-      question: "Which data type is used to store text in Python?",
-      options: ["int", "str", "char", "text"],
-      correctAnswer: 1,
-    },
-    {
-      id: "q3",
-      question: "What is the output of print(2 + 3)?",
-      options: ["5", "23", "2 + 3", "Error"],
-      correctAnswer: 0,
-    },
-    {
-      id: "q4",
-      question: "Which keyword is used to define a function in Python?",
-      options: ["function", "def", "func", "define"],
-      correctAnswer: 1,
-    },
-  ],
-  lessonId: "1",
-};
-
-export default function QuizPage() {
-  const [quiz] = useState<Quiz | null>(mockQuiz);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState<number | null>(null);
+  const [result, setResult] = useState<{
+    score: number;
+    correctCount: number;
+    totalQuestions: number;
+  } | null>(null);
 
-  const handleAnswer = (questionId: string, answerIndex: number) => {
+  const handleAnswer = (questionIndex: number, answerIndex: number) => {
     if (submitted) return;
-    setAnswers({ ...answers, [questionId]: answerIndex });
+    setAnswers({ ...answers, [questionIndex]: answerIndex });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!quiz) return;
 
-    let correct = 0;
-    quiz.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        correct++;
-      }
-    });
+    // Build answers array in order
+    const orderedAnswers: number[] = [];
+    for (let i = 0; i < quiz.questions.length; i++) {
+      orderedAnswers.push(answers[i] ?? -1);
+    }
 
-    const finalScore = Math.round((correct / quiz.questions.length) * 100);
-    setScore(finalScore);
-    setSubmitted(true);
+    try {
+      const res = await submitQuiz({
+        quizId: quiz._id,
+        answers: orderedAnswers,
+      });
+      setResult({
+        score: res.score,
+        correctCount: res.correctCount,
+        totalQuestions: res.totalQuestions,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Failed to submit quiz:", err);
+    }
   };
 
   const handleRetry = () => {
     setAnswers({});
     setSubmitted(false);
-    setScore(null);
+    setResult(null);
     setCurrentQuestionIndex(0);
   };
 
-  const currentQuestion = quiz?.questions[currentQuestionIndex];
-  const progressPercent = quiz
-    ? ((currentQuestionIndex + 1) / quiz.questions.length) * 100
-    : 0;
-
-  if (!quiz) {
+  if (quiz === undefined) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -111,9 +88,33 @@ export default function QuizPage() {
     );
   }
 
+  if (quiz === null) {
+    return (
+      <div className="container py-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <HelpCircle className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <h1 className="mb-1 font-bold text-xl">No Quiz Available</h1>
+          <p className="mb-4 text-muted-foreground text-sm">
+            There is no quiz for this lesson yet.
+          </p>
+          <Button asChild variant="outline" size="sm" className="rounded-xl">
+            <Link href={`/student/learn/${courseId}/${lessonId}`}>
+              <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+              Back to Lesson
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const questions = quiz.questions;
+  const currentQuestion = questions[currentQuestionIndex];
+  const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+
   // Results view
-  if (submitted && score !== null) {
-    const passed = score >= 70;
+  if (submitted && result !== null) {
+    const passed = result.score >= 70;
 
     return (
       <div className="container py-8">
@@ -152,15 +153,10 @@ export default function QuizPage() {
                     : "bg-linear-to-r from-destructive to-destructive/60",
                 )}
               >
-                {score}%
+                {result.score}%
               </div>
               <p className="mb-5 text-muted-foreground text-xs">
-                {
-                  quiz.questions.filter(
-                    (q) => answers[q.id] === q.correctAnswer,
-                  ).length
-                }{" "}
-                of {quiz.questions.length} correct
+                {result.correctCount} of {result.totalQuestions} correct
               </p>
 
               <div className="flex items-center justify-center gap-3">
@@ -173,8 +169,10 @@ export default function QuizPage() {
                   <RotateCcw className="mr-1 h-3.5 w-3.5" />
                   Retry
                 </Button>
-                <Button size="sm" className="rounded-xl">
-                  Back to Lesson
+                <Button asChild size="sm" className="rounded-xl">
+                  <Link href={`/student/learn/${courseId}/${lessonId}`}>
+                    Back to Lesson
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -183,12 +181,12 @@ export default function QuizPage() {
           {/* Review Answers */}
           <div className="mt-4 space-y-2">
             <h2 className="font-semibold text-sm">Review Your Answers</h2>
-            {quiz.questions.map((question, index) => {
-              const userAnswer = answers[question.id];
-              const isCorrect = userAnswer === question.correctAnswer;
+            {questions.map((question, index) => {
+              const userAnswer = answers[index];
+              const isCorrect = userAnswer === question.correctOptionIndex;
 
               return (
-                <Card key={question.id} className="rounded-xl shadow-sm">
+                <Card key={index} className="rounded-xl shadow-sm">
                   <CardContent className="p-3">
                     <div className="flex items-start gap-2">
                       <div
@@ -213,17 +211,17 @@ export default function QuizPage() {
                               key={optIndex}
                               className={cn(
                                 "rounded-lg p-1.5",
-                                optIndex === question.correctAnswer &&
+                                optIndex === question.correctOptionIndex &&
                                   "bg-success/10 text-success",
                                 optIndex === userAnswer &&
-                                  optIndex !== question.correctAnswer &&
+                                  optIndex !== question.correctOptionIndex &&
                                   "bg-destructive/10 text-destructive",
                               )}
                             >
                               {option}
-                              {optIndex === question.correctAnswer && " ✓"}
+                              {optIndex === question.correctOptionIndex && " ✓"}
                               {optIndex === userAnswer &&
-                                optIndex !== question.correctAnswer &&
+                                optIndex !== question.correctOptionIndex &&
                                 " (Your answer)"}
                             </div>
                           ))}
@@ -245,10 +243,13 @@ export default function QuizPage() {
     <div className="container py-8">
       <div className="mx-auto max-w-2xl">
         <div className="mb-5">
-          <div className="mb-3 inline-flex items-center text-muted-foreground text-xs">
+          <Link
+            href={`/student/learn/${courseId}/${lessonId}`}
+            className="mb-3 inline-flex items-center text-muted-foreground text-xs hover:text-foreground"
+          >
             <ArrowLeft className="mr-1 h-3 w-3" />
             Back to Lesson
-          </div>
+          </Link>
           <h1 className="font-bold font-display text-2xl">{quiz.title}</h1>
         </div>
 
@@ -256,7 +257,7 @@ export default function QuizPage() {
         <div className="mb-5">
           <div className="mb-1.5 flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
-              Question {currentQuestionIndex + 1} of {quiz.questions.length}
+              Question {currentQuestionIndex + 1} of {questions.length}
             </span>
             <span className="font-medium">{Math.round(progressPercent)}%</span>
           </div>
@@ -278,9 +279,9 @@ export default function QuizPage() {
             </CardHeader>
             <CardContent>
               <RadioGroup
-                value={answers[currentQuestion.id]?.toString()}
+                value={answers[currentQuestionIndex]?.toString()}
                 onValueChange={(value) =>
-                  handleAnswer(currentQuestion.id, Number.parseInt(value))
+                  handleAnswer(currentQuestionIndex, Number.parseInt(value))
                 }
               >
                 {currentQuestion.options.map((option, index) => (
@@ -288,11 +289,14 @@ export default function QuizPage() {
                     key={index}
                     className={cn(
                       "flex cursor-pointer items-center space-x-2.5 rounded-xl border p-2.5 text-sm transition-colors",
-                      answers[currentQuestion.id] === index
+                      answers[currentQuestionIndex] === index
                         ? "border-primary bg-primary/5"
                         : "hover:border-primary/50",
                     )}
-                    onClick={() => handleAnswer(currentQuestion.id, index)}
+                    onClick={() => handleAnswer(currentQuestionIndex, index)}
+                    onKeyDown={() => {}}
+                    role="button"
+                    tabIndex={0}
                   >
                     <RadioGroupItem
                       value={index.toString()}
@@ -324,12 +328,12 @@ export default function QuizPage() {
             Previous
           </Button>
 
-          {currentQuestionIndex < quiz.questions.length - 1 ? (
+          {currentQuestionIndex < questions.length - 1 ? (
             <Button
               size="sm"
               className="rounded-xl"
               onClick={() => setCurrentQuestionIndex((i) => i + 1)}
-              disabled={answers[currentQuestion?.id || ""] === undefined}
+              disabled={answers[currentQuestionIndex] === undefined}
             >
               Next
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -339,7 +343,7 @@ export default function QuizPage() {
               size="sm"
               className="rounded-xl"
               onClick={handleSubmit}
-              disabled={Object.keys(answers).length !== quiz.questions.length}
+              disabled={Object.keys(answers).length !== questions.length}
             >
               Submit Quiz
               <CheckCircle2 className="ml-1 h-3.5 w-3.5" />
@@ -349,15 +353,16 @@ export default function QuizPage() {
 
         {/* Question dots */}
         <div className="mt-5 flex items-center justify-center gap-1.5">
-          {quiz.questions.map((q, index) => (
+          {questions.map((_, index) => (
             <button
-              key={q.id}
+              key={index}
+              type="button"
               onClick={() => setCurrentQuestionIndex(index)}
               className={cn(
                 "h-2.5 w-2.5 rounded-full transition-colors",
                 index === currentQuestionIndex
                   ? "bg-primary"
-                  : answers[q.id] !== undefined
+                  : answers[index] !== undefined
                     ? "bg-primary/50"
                     : "bg-muted",
               )}

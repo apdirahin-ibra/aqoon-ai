@@ -59,6 +59,37 @@ export const submit = mutation({
     },
 });
 
+// ─── Get a single quiz attempt ────────────────────────────────────────────────
+export const getAttempt = query({
+    args: { attemptId: v.id("quizAttempts") },
+    handler: async (ctx, args) => {
+        const attempt = await ctx.db.get(args.attemptId);
+        if (!attempt) return null;
+
+        const quiz = await ctx.db.get(attempt.quizId);
+        if (!quiz) return null;
+
+        const lesson = await ctx.db.get(quiz.lessonId);
+        const course = lesson ? await ctx.db.get(lesson.courseId) : null;
+
+        return {
+            ...attempt,
+            quiz: {
+                ...quiz,
+                lesson: lesson
+                    ? {
+                          _id: lesson._id,
+                          title: lesson.title,
+                          course: course
+                              ? { _id: course._id, title: course.title }
+                              : null,
+                      }
+                    : null,
+            },
+        };
+    },
+});
+
 // ─── Get user's quiz attempts ─────────────────────────────────────────────────
 export const getAttempts = query({
     args: { quizId: v.id("quizzes") },
