@@ -19,7 +19,7 @@ function createAuth(ctx: GenericCtx<DataModel>) {
 			siteUrl,
 			nativeAppUrl,
 			...(process.env.NODE_ENV === "development"
-				? ["exp://", "exp://**", "exp://192.168.*.*:*/**", "http://localhost:3000"]
+				? ["http://localhost:3000", "http://localhost:3001"]
 				: []),
 		],
 		database: authComponent.adapter(ctx),

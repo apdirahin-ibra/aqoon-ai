@@ -10,7 +10,7 @@ function DashboardContent({ children }: { children: ReactNode }) {
   return (
     <main
       className={cn(
-        "flex-1 px-4 pt-4 pb-8 transition-all duration-300",
+        "flex-1 px-4 pb-8 transition-all duration-300",
         isSidebarHidden ? "lg:pl-4" : isCollapsed ? "lg:pl-24" : "lg:pl-72",
       )}
     >

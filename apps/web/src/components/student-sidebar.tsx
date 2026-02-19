@@ -165,7 +165,7 @@ export function StudentSidebar() {
       {/* Mobile Menu Button - Fixed */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-[72px] left-4 z-30 flex h-10 w-10 items-center justify-center rounded-lg bg-card shadow-md lg:hidden"
+        className="fixed top-4 left-4 z-30 flex h-10 w-10 items-center justify-center rounded-lg bg-card shadow-md lg:hidden"
         aria-label="Open menu"
       >
         <svg
@@ -188,7 +188,7 @@ export function StudentSidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "fixed top-[65px] left-0 z-40 hidden h-[calc(100vh-65px)] flex-col border-r bg-card shadow-lg transition-all duration-300 lg:flex",
+          "fixed top-0 left-0 z-40 hidden h-screen flex-col border-r bg-card shadow-lg transition-all duration-300 lg:flex",
           isCollapsed ? "w-20" : "w-72",
         )}
       >

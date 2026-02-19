@@ -58,19 +58,19 @@ export function Header() {
 
         <nav className="hidden items-center gap-6 md:flex">
           <Link
-            href={"/pricing" as any}
+            href="/pricing"
             className="font-semibold text-muted-foreground text-sm transition-colors hover:text-foreground"
           >
             Pricing
           </Link>
           <Link
-            href={"/about" as any}
+            href="/about"
             className="font-semibold text-muted-foreground text-sm transition-colors hover:text-foreground"
           >
             About
           </Link>
           <Link
-            href={"/contact" as any}
+            href="/contact"
             className="font-semibold text-muted-foreground text-sm transition-colors hover:text-foreground"
           >
             Contact
@@ -96,7 +96,7 @@ export function Header() {
                 Dashboard
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => router.push("/profile" as any)}
+                onClick={() => router.push("/student/profile" as any)}
                 className="cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4" />
