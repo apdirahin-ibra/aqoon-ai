@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/sidebar-context";
+import { SidebarUserMenu } from "@/components/sidebar-user-menu";
 
 interface MenuItem {
   title: string;
@@ -121,6 +122,15 @@ export function TutorSidebar() {
         </div>
       </nav>
 
+      {/* User Menu */}
+      <SidebarUserMenu
+        isCollapsed={isCollapsed}
+        isMobile={isMobile}
+        profileHref="/tutor"
+        settingsHref="/tutor"
+      />
+
+      {/* Collapse Button - Bottom (desktop only) */}
       {!isMobile && (
         <div className="border-t p-3">
           <button

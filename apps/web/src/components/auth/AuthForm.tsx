@@ -24,12 +24,12 @@ interface AuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function AuthForm({ className, type, ...props }: AuthFormProps) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = React.useState<boolean>(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [fullName, setFullName] = React.useState("");
-  const router = useRouter();
 
   const isSignIn = type === "signin";
 
@@ -43,12 +43,11 @@ export function AuthForm({ className, type, ...props }: AuthFormProps) {
           {
             email,
             password,
-            callbackURL: "/student",
           },
           {
             onSuccess: () => {
               toast.success("Welcome back!");
-              router.push("/student");
+              router.push("/dashboard");
             },
             onError: (ctx) => {
               toast.error(ctx.error.message || "Sign in failed");
@@ -61,12 +60,11 @@ export function AuthForm({ className, type, ...props }: AuthFormProps) {
             email,
             password,
             name: fullName,
-            callbackURL: "/student",
           },
           {
             onSuccess: () => {
               toast.success("Account created successfully!");
-              router.push("/student");
+              router.push("/dashboard");
             },
             onError: (ctx) => {
               toast.error(ctx.error.message || "Sign up failed");
@@ -86,7 +84,7 @@ export function AuthForm({ className, type, ...props }: AuthFormProps) {
     await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: "/student",
+        callbackURL: "/dashboard",
       },
       {
         onError: (ctx) => {

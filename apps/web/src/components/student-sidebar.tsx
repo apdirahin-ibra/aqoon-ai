@@ -18,6 +18,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/sidebar-context";
+import { SidebarUserMenu } from "@/components/sidebar-user-menu";
 
 interface MenuItem {
   title: string;
@@ -134,6 +135,14 @@ export function StudentSidebar() {
           })}
         </div>
       </nav>
+
+      {/* User Menu */}
+      <SidebarUserMenu
+        isCollapsed={isCollapsed}
+        isMobile={isMobile}
+        profileHref="/student/profile"
+        settingsHref="/student/profile"
+      />
 
       {/* Collapse Button - Bottom (desktop only) */}
       {!isMobile && (
