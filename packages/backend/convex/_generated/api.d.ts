@@ -13,6 +13,7 @@ import type * as certificates from "../certificates.js";
 import type * as courses from "../courses.js";
 import type * as dashboard from "../dashboard.js";
 import type * as enrollments from "../enrollments.js";
+import type * as files from "../files.js";
 import type * as forum from "../forum.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as helpers from "../helpers.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   courses: typeof courses;
   dashboard: typeof dashboard;
   enrollments: typeof enrollments;
+  files: typeof files;
   forum: typeof forum;
   healthCheck: typeof healthCheck;
   helpers: typeof helpers;

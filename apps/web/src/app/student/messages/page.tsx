@@ -1,104 +1,89 @@
 "use client";
 
-import { Loader2, Search, Send } from "lucide-react";
-import { useState } from "react";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
+import { MessageSquare, Search, Send } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-interface Conversation {
-	id: string;
-	name: string;
-	lastMessage: string;
-	timestamp: string;
-	unread: number;
-	avatar: string;
-}
-
-interface Message {
-	id: string;
-	content: string;
-	sender: "me" | "other";
-	timestamp: string;
-}
-
-const mockConversations: Conversation[] = [
-	{
-		id: "1",
-		name: "Dr. Sarah Smith",
-		lastMessage: "Great question about React hooks!",
-		timestamp: "10:30 AM",
-		unread: 2,
-		avatar: "SS",
-	},
-	{
-		id: "2",
-		name: "Prof. Ahmed Ali",
-		lastMessage: "The assignment is due Friday",
-		timestamp: "Yesterday",
-		unread: 0,
-		avatar: "AA",
-	},
-	{
-		id: "3",
-		name: "Study Group",
-		lastMessage: "Who's joining the session?",
-		timestamp: "Mon",
-		unread: 5,
-		avatar: "SG",
-	},
-];
-
-const mockMessages: Message[] = [
-	{
-		id: "1",
-		content:
-			"Hi Dr. Smith, I have a question about the useEffect cleanup function",
-		sender: "me",
-		timestamp: "10:25 AM",
-	},
-	{
-		id: "2",
-		content:
-			"Great question about React hooks! The cleanup function runs when the component unmounts or before the effect runs again.",
-		sender: "other",
-		timestamp: "10:30 AM",
-	},
-	{
-		id: "3",
-		content: "That makes sense! So it's similar to componentWillUnmount?",
-		sender: "me",
-		timestamp: "10:32 AM",
-	},
-];
-
 export default function MessagesPage() {
-	const [conversations] = useState<Conversation[]>(mockConversations);
-	const [messages] = useState<Message[]>(mockMessages);
-	const [selectedConversation, setSelectedConversation] = useState<
-		string | null
-	>("1");
+	const currentUser = useQuery(api.users.current);
+	const conversations = useQuery(api.messagesApi.listConversations);
+	const sendMessage = useMutation(api.messagesApi.send);
+	const markAsRead = useMutation(api.messagesApi.markRead);
+
+	const [selectedPartnerId, setSelectedPartnerId] =
+		useState<Id<"users"> | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [newMessage, setNewMessage] = useState("");
-	const [loading] = useState(false);
 
-	const filtered = conversations.filter((c) =>
-		c.name.toLowerCase().includes(searchQuery.toLowerCase()),
+	const thread = useQuery(
+		api.messagesApi.getThread,
+		selectedPartnerId ? { partnerId: selectedPartnerId } : "skip",
 	);
 
-	const selectedPerson = conversations.find(
-		(c) => c.id === selectedConversation,
-	);
+	useEffect(() => {
+		if (selectedPartnerId) {
+			markAsRead({ partnerId: selectedPartnerId });
+		}
+	}, [selectedPartnerId, markAsRead]);
 
-	if (loading) {
+	const formatTime = (timestamp: number) => {
+		const diff = Date.now() - timestamp;
+		const hours = Math.floor(diff / (1000 * 60 * 60));
+		if (hours < 1) return "Just now";
+		if (hours < 24) return `${hours}h ago`;
+		const days = Math.floor(hours / 24);
+		if (days < 7) return `${days}d ago`;
+		return new Date(timestamp).toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+		});
+	};
+
+	const getInitials = (name: string) =>
+		name
+			.split(" ")
+			.map((w) => w[0])
+			.join("")
+			.toUpperCase()
+			.slice(0, 2);
+
+	const handleSend = async () => {
+		if (!newMessage.trim() || !selectedPartnerId) return;
+		await sendMessage({
+			receiverId: selectedPartnerId,
+			content: newMessage.trim(),
+		});
+		setNewMessage("");
+	};
+
+	if (conversations === undefined || currentUser === undefined) {
 		return (
-			<div className="flex min-h-[400px] items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			<div className="container py-8">
+				<Skeleton className="mb-1 h-8 w-32" />
+				<Skeleton className="mb-5 h-4 w-56" />
+				<div className="grid h-[400px] gap-4 lg:grid-cols-[280px_1fr]">
+					<Skeleton className="rounded-2xl" />
+					<Skeleton className="rounded-2xl" />
+				</div>
 			</div>
 		);
 	}
+
+	const filtered = conversations.filter((c) =>
+		c.partnerName.toLowerCase().includes(searchQuery.toLowerCase()),
+	);
+
+	const selectedConversation = conversations.find(
+		(c) => c.partnerId === selectedPartnerId,
+	);
 
 	return (
 		<div className="container py-8">
@@ -110,7 +95,6 @@ export default function MessagesPage() {
 			</div>
 
 			<div className="grid h-[calc(100vh-220px)] min-h-[400px] gap-4 lg:grid-cols-[280px_1fr]">
-				{/* Conversation List */}
 				<Card className="flex flex-col overflow-hidden rounded-2xl shadow-sm">
 					<div className="border-b p-2">
 						<div className="relative">
@@ -124,105 +108,127 @@ export default function MessagesPage() {
 						</div>
 					</div>
 					<div className="flex-1 overflow-y-auto">
-						{filtered.map((conv) => (
-							<button
-								key={conv.id}
-								type="button"
-								onClick={() => setSelectedConversation(conv.id)}
-								className={cn(
-									"flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors hover:bg-muted/50",
-									selectedConversation === conv.id && "bg-primary/5",
-								)}
-							>
-								<Avatar className="h-8 w-8 shrink-0">
-									<AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/5 text-xs">
-										{conv.avatar}
-									</AvatarFallback>
-								</Avatar>
-								<div className="min-w-0 flex-1">
-									<div className="flex items-center justify-between">
-										<span className="truncate font-medium text-xs">
-											{conv.name}
-										</span>
-										<span className="shrink-0 text-[10px] text-muted-foreground">
-											{conv.timestamp}
-										</span>
+						{filtered.length > 0 ? (
+							filtered.map((conv) => (
+								<button
+									key={conv.partnerId}
+									type="button"
+									onClick={() => setSelectedPartnerId(conv.partnerId)}
+									className={cn(
+										"flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors hover:bg-muted/50",
+										selectedPartnerId === conv.partnerId && "bg-primary/5",
+									)}
+								>
+									<Avatar className="h-8 w-8 shrink-0">
+										<AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/5 text-xs">
+											{getInitials(conv.partnerName)}
+										</AvatarFallback>
+									</Avatar>
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center justify-between">
+											<span className="truncate font-medium text-xs">
+												{conv.partnerName}
+											</span>
+											<span className="shrink-0 text-[10px] text-muted-foreground">
+												{formatTime(conv.lastMessageAt)}
+											</span>
+										</div>
+										<p className="truncate text-[11px] text-muted-foreground">
+											{conv.lastMessage}
+										</p>
 									</div>
-									<p className="truncate text-[11px] text-muted-foreground">
-										{conv.lastMessage}
-									</p>
-								</div>
-								{conv.unread > 0 && (
-									<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-[9px] text-primary-foreground">
-										{conv.unread}
-									</span>
-								)}
-							</button>
-						))}
+									{conv.unreadCount > 0 && (
+										<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-[9px] text-primary-foreground">
+											{conv.unreadCount}
+										</span>
+									)}
+								</button>
+							))
+						) : (
+							<div className="flex flex-col items-center justify-center p-6 text-center">
+								<MessageSquare className="mb-2 h-8 w-8 text-muted-foreground" />
+								<p className="text-muted-foreground text-xs">
+									No conversations yet
+								</p>
+							</div>
+						)}
 					</div>
 				</Card>
 
-				{/* Chat Area */}
 				<Card className="flex flex-col overflow-hidden rounded-2xl shadow-sm">
-					{selectedPerson ? (
+					{selectedConversation && thread ? (
 						<>
 							<div className="flex items-center gap-2.5 border-b px-4 py-2.5">
 								<Avatar className="h-7 w-7">
 									<AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/5 text-xs">
-										{selectedPerson.avatar}
+										{getInitials(selectedConversation.partnerName)}
 									</AvatarFallback>
 								</Avatar>
 								<div>
-									<p className="font-medium text-sm">{selectedPerson.name}</p>
-									<p className="text-[10px] text-muted-foreground">Online</p>
+									<p className="font-medium text-sm">
+										{selectedConversation.partnerName}
+									</p>
 								</div>
 							</div>
 
 							<div className="flex-1 space-y-3 overflow-y-auto p-4">
-								{messages.map((msg) => (
-									<div
-										key={msg.id}
-										className={cn(
-											"flex",
-											msg.sender === "me" ? "justify-end" : "justify-start",
-										)}
-									>
+								{thread.map((msg) => {
+									const isMe = currentUser && msg.senderId === currentUser._id;
+									return (
 										<div
+											key={msg._id}
 											className={cn(
-												"max-w-[75%] rounded-2xl px-3 py-2 text-xs",
-												msg.sender === "me"
-													? "bg-linear-to-br from-primary to-primary/90 text-primary-foreground"
-													: "bg-muted",
+												"flex",
+												isMe ? "justify-end" : "justify-start",
 											)}
 										>
-											<p>{msg.content}</p>
-											<p
+											<div
 												className={cn(
-													"mt-1 text-[9px]",
-													msg.sender === "me"
-														? "text-primary-foreground/70"
-														: "text-muted-foreground",
+													"max-w-[75%] rounded-2xl px-3 py-2 text-xs",
+													isMe
+														? "bg-linear-to-br from-primary to-primary/90 text-primary-foreground"
+														: "bg-muted",
 												)}
 											>
-												{msg.timestamp}
-											</p>
+												<p>{msg.content}</p>
+												<p
+													className={cn(
+														"mt-1 text-[9px]",
+														isMe
+															? "text-primary-foreground/70"
+															: "text-muted-foreground",
+													)}
+												>
+													{formatTime(msg.createdAt)}
+												</p>
+											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 
 							<div className="border-t p-2.5">
-								<div className="flex gap-2">
+								<form
+									onSubmit={(e) => {
+										e.preventDefault();
+										handleSend();
+									}}
+									className="flex gap-2"
+								>
 									<Input
 										placeholder="Type a message..."
 										className="h-8 rounded-xl text-xs"
 										value={newMessage}
 										onChange={(e) => setNewMessage(e.target.value)}
 									/>
-									<Button size="sm" className="h-8 rounded-xl px-3">
+									<Button
+										type="submit"
+										size="sm"
+										className="h-8 rounded-xl px-3"
+									>
 										<Send className="h-3.5 w-3.5" />
 									</Button>
-								</div>
+								</form>
 							</div>
 						</>
 					) : (

@@ -1,58 +1,32 @@
 "use client";
 
-import { Award, Download, Loader2, Share2 } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import { useQuery } from "convex/react";
+import { Award, Download, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-interface Certificate {
-	id: string;
-	courseTitle: string;
-	completedAt: string;
-	credentialId: string;
-	category: string;
-}
-
-const mockCertificates: Certificate[] = [
-	{
-		id: "1",
-		courseTitle: "Introduction to Python Programming",
-		completedAt: "2024-02-15",
-		credentialId: "CERT-PY-2024-001",
-		category: "Coding",
-	},
-	{
-		id: "2",
-		courseTitle: "Advanced JavaScript Patterns",
-		completedAt: "2024-03-01",
-		credentialId: "CERT-JS-2024-042",
-		category: "Coding",
-	},
-	{
-		id: "3",
-		courseTitle: "UI/UX Design Fundamentals",
-		completedAt: "2024-03-20",
-		credentialId: "CERT-UX-2024-018",
-		category: "Design",
-	},
-];
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CertificatesPage() {
-	const [certificates] = useState<Certificate[]>(mockCertificates);
-	const [loading] = useState(false);
+	const certificates = useQuery(api.certificates.myCertificates);
 
-	const formatDate = (date: string) =>
-		new Date(date).toLocaleDateString("en-US", {
+	const formatDate = (timestamp: number) =>
+		new Date(timestamp).toLocaleDateString("en-US", {
 			year: "numeric",
 			month: "short",
 			day: "numeric",
 		});
 
-	if (loading) {
+	if (certificates === undefined) {
 		return (
-			<div className="flex min-h-[400px] items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			<div className="container py-8">
+				<Skeleton className="mb-1 h-8 w-48" />
+				<Skeleton className="mb-5 h-4 w-32" />
+				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{Array.from({ length: 3 }).map((_, i) => (
+						<Skeleton key={`cert-skel-${i}`} className="h-64 rounded-2xl" />
+					))}
+				</div>
 			</div>
 		);
 	}
@@ -64,7 +38,8 @@ export default function CertificatesPage() {
 					My Certificates
 				</h1>
 				<p className="text-muted-foreground text-sm">
-					{certificates.length} certificates earned
+					{certificates.length} certificate
+					{certificates.length !== 1 ? "s" : ""} earned
 				</p>
 			</div>
 
@@ -72,14 +47,13 @@ export default function CertificatesPage() {
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{certificates.map((cert, i) => (
 						<Card
-							key={cert.id}
+							key={cert._id}
 							className="group fade-in slide-in-from-bottom-4 animate-in overflow-hidden rounded-2xl shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
 							style={{
 								animationDelay: `${i * 100}ms`,
 								animationFillMode: "backwards",
 							}}
 						>
-							{/* Certificate Preview */}
 							<div className="relative flex h-36 items-center justify-center bg-linear-to-br from-primary/15 via-primary/5 to-accent/10">
 								<div className="text-center">
 									<div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-primary/30 to-primary/10">
@@ -89,12 +63,6 @@ export default function CertificatesPage() {
 										Certificate of Completion
 									</p>
 								</div>
-								<Badge
-									variant="secondary"
-									className="absolute top-2 right-2 text-xs"
-								>
-									{cert.category}
-								</Badge>
 							</div>
 
 							<CardContent className="p-3">
@@ -102,10 +70,8 @@ export default function CertificatesPage() {
 									{cert.courseTitle}
 								</h3>
 								<div className="mb-3 space-y-0.5 text-muted-foreground text-xs">
-									<p>Issued: {formatDate(cert.completedAt)}</p>
-									<p className="font-mono text-[10px]">
-										ID: {cert.credentialId}
-									</p>
+									<p>Issued: {formatDate(cert.issuedAt)}</p>
+									<p className="font-mono text-[10px]">ID: {cert.code}</p>
 								</div>
 								<div className="flex gap-2">
 									<Button
