@@ -575,8 +575,7 @@ export const run = internalMutation({
 						"func myFunc()",
 					],
 					correctOptionIndex: 1,
-					explanation:
-						"Python uses the `def` keyword to define functions.",
+					explanation: "Python uses the `def` keyword to define functions.",
 				},
 				{
 					question: "What is Python's indentation used for?",
@@ -600,7 +599,8 @@ export const run = internalMutation({
 			userId: student1Id,
 			answers: [1, 1, 2],
 			score: 100,
-			feedback: "Perfect score! You have a great understanding of React fundamentals.",
+			feedback:
+				"Perfect score! You have a great understanding of React fundamentals.",
 			completedAt: now - 14 * 86400000,
 		});
 		await ctx.db.insert("quizAttempts", {
@@ -634,8 +634,7 @@ export const run = internalMutation({
 			userId: student2Id,
 			courseId: course1Id,
 			rating: 4,
-			comment:
-				"Very comprehensive. Would love more exercises between lessons.",
+			comment: "Very comprehensive. Would love more exercises between lessons.",
 			createdAt: now - 7 * 86400000,
 		});
 		await ctx.db.insert("reviews", {
@@ -915,7 +914,9 @@ export const run = internalMutation({
 
 		console.log("✅ Database seeded successfully!");
 		console.log("Created: 6 users, 6 courses, 20 lessons, 8 enrollments");
-		console.log("Quiz, reviews, forum posts, notifications, messages, payments");
+		console.log(
+			"Quiz, reviews, forum posts, notifications, messages, payments",
+		);
 
 		return "Seed complete";
 	},

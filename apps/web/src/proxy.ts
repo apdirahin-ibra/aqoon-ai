@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 const protectedPaths = ["/student", "/tutor", "/admin"];
 const authPaths = ["/signin", "/signup"];

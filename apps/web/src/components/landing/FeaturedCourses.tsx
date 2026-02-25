@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,8 @@ import {
 	CarouselNext,
 	CarouselPrevious,
 } from "@/components/ui/carousel";
-import { cn } from "@/lib/utils";
 
-// Mock data for featured courses
-const mockCourses = [
+const featuredCourses = [
 	{
 		id: "1",
 		title: "Mastering Next.js 14 with AI",
@@ -113,7 +111,7 @@ export function FeaturedCourses() {
 						size="lg"
 						className="group mt-6 lg:mt-0"
 					>
-						<Link href={"/courses" as any}>
+						<Link href={"/courses"}>
 							View All Courses
 							<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
 						</Link>
@@ -129,7 +127,7 @@ export function FeaturedCourses() {
 						className="w-full"
 					>
 						<CarouselContent className="-ml-4">
-							{mockCourses.map((course) => (
+							{featuredCourses.map((course) => (
 								<CarouselItem
 									key={course.id}
 									className="pl-4 md:basis-1/2 lg:basis-1/3"

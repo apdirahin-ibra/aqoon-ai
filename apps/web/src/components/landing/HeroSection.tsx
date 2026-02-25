@@ -3,7 +3,6 @@
 import { ArrowRight, Play, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function HeroSection() {
 	return (
@@ -86,7 +85,7 @@ export function HeroSection() {
 					{/* CTA Buttons */}
 					<div className="mb-12 flex flex-col justify-center gap-4 sm:flex-row">
 						<Button asChild size="lg" className="btn-hero h-14 px-10 text-lg">
-							<Link href={"/auth?tab=signup" as any}>
+							<Link href={"/auth?tab=signup"}>
 								Start Learning Free
 								<ArrowRight className="ml-2 h-5 w-5" />
 							</Link>
@@ -96,7 +95,7 @@ export function HeroSection() {
 							size="lg"
 							className="btn-hero-outline group h-14 px-10 text-lg"
 						>
-							<Link href={"/courses" as any} className="flex items-center">
+							<Link href={"/courses"} className="flex items-center">
 								<Play className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
 								Watch Demo
 							</Link>

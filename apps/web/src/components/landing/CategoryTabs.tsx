@@ -7,7 +7,6 @@ import {
 	Languages,
 	Music,
 	Palette,
-	Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -169,7 +168,7 @@ export function CategoryTabs() {
 								))}
 							</div>
 							<Button asChild size="lg" className="group">
-								<Link href={`/courses?category=${category.id}` as any}>
+								<Link href={`/courses?category=${category.id}`}>
 									Explore {category.label} Courses
 									<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
 								</Link>

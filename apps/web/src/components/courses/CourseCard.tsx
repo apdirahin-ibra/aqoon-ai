@@ -53,7 +53,7 @@ export function CourseCard({
 	};
 
 	return (
-		<Link href={`/courses/${id}` as any} className="group block">
+		<Link href={`/courses/${id}`} className="group block">
 			<article className="card-course flex h-full flex-col transition-all duration-300">
 				<div className="relative aspect-video overflow-hidden">
 					{thumbnailUrl ? (

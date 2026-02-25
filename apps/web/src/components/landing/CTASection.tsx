@@ -65,7 +65,7 @@ export function CTASection() {
 							size="lg"
 							className="btn-hero h-14 animate-pulse-glow px-12 text-lg"
 						>
-							<Link href={"/auth?tab=signup" as any}>
+							<Link href={"/auth?tab=signup"}>
 								Get Started Free
 								<ArrowRight className="ml-2 h-5 w-5" />
 							</Link>
@@ -75,7 +75,7 @@ export function CTASection() {
 							size="lg"
 							className="btn-hero-outline h-14 px-12 text-lg"
 						>
-							<Link href={"/courses" as any}>Explore Courses</Link>
+							<Link href={"/courses"}>Explore Courses</Link>
 						</Button>
 					</div>
 

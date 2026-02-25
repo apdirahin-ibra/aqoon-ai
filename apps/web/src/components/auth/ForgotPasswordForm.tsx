@@ -29,7 +29,6 @@ export function ForgotPasswordForm({
 		setIsLoading(true);
 
 		try {
-			// Simulate API call - in production, this would call the backend
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 			setEmailSent(true);
 			toast.success("Password reset email sent!");
