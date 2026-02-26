@@ -4,7 +4,83 @@ Replace all mock `useState` data across 25+ pages with live Convex queries/mutat
 
 ---
 
-## Changelog (Latest Session — Feb 24–25, 2026)
+## Changelog (Latest Session — Feb 26, 2026)
+
+### Phase 8: OpenRouter AI Integration ✅
+
+| Change                     | File                                                 | Detail                                                                                                                                        |
+| -------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[NEW] AI actions**       | `packages/backend/convex/ai.ts`                      | `generateStudyPlan` + `assessSkills` Convex actions using `generateText()` + `Output.object()` (AI SDK v6) with `@openrouter/ai-sdk-provider` |
+| **Study plan wired**       | `apps/web/src/app/student/study-plan/page.tsx`       | Replaced mock `setTimeout` with `useAction(api.ai.generateStudyPlan)`                                                                         |
+| **Skill assessment wired** | `apps/web/src/app/student/skill-assessment/page.tsx` | Replaced mock `setTimeout` with `useAction(api.ai.assessSkills)`                                                                              |
+| **Dependencies**           | `packages/backend/package.json`                      | Added `ai@^6.0.103`, `@openrouter/ai-sdk-provider@^2.2.3`                                                                                     |
+
+**Env vars needed in Convex dashboard:** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (defaults to `google/gemini-2.0-flash`)
+
+### Phase 6: Tutor Pages ✅
+
+| Change                 | File                                             | Detail                                                                      |
+| ---------------------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
+| **Tutor dashboard**    | `apps/web/src/app/tutor/page.tsx`                | Wired to `api.dashboard.tutorStats` + `api.courses.listByTutor`             |
+| **Tutor courses list** | `apps/web/src/app/tutor/courses/page.tsx`        | Wired to `api.courses.listByTutor`, real thumbnails, skeleton loaders       |
+| **Tutor analytics**    | `apps/web/src/app/tutor/analytics/page.tsx`      | Wired to `tutorStats` + `listByTutor`, earnings chart, student distribution |
+| **Tutor earnings**     | `apps/web/src/app/tutor/earnings/page.tsx`       | Wired to `tutorStats` + `listByTutor`, revenue breakdown by course          |
+| **Tutor profile**      | `apps/web/src/app/tutor/profile/page.tsx`        | Wired to `users.current` + `updateProfile` + `<ImageUpload>`                |
+| **Editor redirect**    | `apps/web/src/app/tutor/courses/editor/page.tsx` | Redirects to `/tutor/courses/new` (was duplicate)                           |
+
+### Phase 7: Admin Pages ✅
+
+| Change              | File                                      | Detail                                                             |
+| ------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| **Admin dashboard** | `apps/web/src/app/admin/page.tsx`         | Wired to `api.dashboard.adminStats`, platform breakdown            |
+| **Admin users**     | `apps/web/src/app/admin/users/page.tsx`   | Wired to `api.users.list` + `api.users.updateRole`, search/filter  |
+| **Admin courses**   | `apps/web/src/app/admin/courses/page.tsx` | Wired to `api.courses.listPublic` + `publish`/`unpublish`/`remove` |
+
+### Backend Enhancements
+
+| Change                     | File                                 | Detail                                                                               |
+| -------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| **Enhanced `listByTutor`** | `packages/backend/convex/courses.ts` | Added `totalRevenueCents`, `completionRate` per course (from payments + enrollments) |
+| **`by_course` index**      | `packages/backend/convex/schema.ts`  | Added index on `payments.courseId` for revenue queries                               |
+
+---
+
+## Changelog (Previous Session — Feb 25–26, 2026)
+
+### Phase 4: Student Social Features ✅
+
+| Change                 | File                                              | Detail                                                                                |
+| ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Wishlist page**      | `apps/web/src/app/student/wishlist/page.tsx`      | Wired to `api.wishlist.list`, `api.wishlist.toggle`                                   |
+| **Certificates page**  | `apps/web/src/app/student/certificates/page.tsx`  | Wired to `api.certificates.myCertificates`                                            |
+| **Notifications page** | `apps/web/src/app/student/notifications/page.tsx` | Wired to `api.notifications.list`, `.markRead`, `.markAllRead`                        |
+| **Messages page**      | `apps/web/src/app/student/messages/page.tsx`      | Wired to `api.messagesApi.listConversations`, `.getThread`, `.send`, `.markRead`      |
+| **Profile page**       | `apps/web/src/app/student/profile/page.tsx`       | Wired to `api.users.current`, `api.users.updateProfile`, `api.files.saveProfileImage` |
+
+### Phase 5: Convex File Storage ✅
+
+| Change                      | File                                                  | Detail                                                                                        |
+| --------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **[NEW] `files.ts`**        | `packages/backend/convex/files.ts`                    | 4 endpoints: `generateUploadUrl`, `getFileUrl`, `saveProfileImage`, `saveCourseThumbnail`     |
+| **[NEW] `<ImageUpload>`**   | `apps/web/src/components/image-upload.tsx`            | Reusable component: circle (avatars) + rectangle (thumbnails), drag-and-drop, instant preview |
+| **Profile avatar upload**   | `apps/web/src/app/student/profile/page.tsx`           | Camera button → `<ImageUpload>` → `saveProfileImage`                                          |
+| **Course thumbnail upload** | `courses/new/page.tsx`, `courses/[courseId]/page.tsx` | Upload resolves `storageId → URL` via `getFileUrl` and stores in local state                  |
+| **Next.js image config**    | `apps/web/next.config.ts`                             | Added `**.convex.cloud` to `images.remotePatterns`                                            |
+
+### Sidebar Fixes
+
+| Change                       | File                    | Detail                                                                                                |
+| ---------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Logout fixed**             | `sidebar-user-menu.tsx` | Uses `authClient.signOut({ fetchOptions: { onSuccess } })` + `window.location.href` for hard redirect |
+| **Profile link fixed**       | `sidebar-user-menu.tsx` | Base UI `Menu.Item` doesn't support `onSelect` — switched to plain `<button>` with `router.push()`    |
+| **Profile removed from nav** | `student-sidebar.tsx`   | Removed duplicate Profile item from sidebar nav (already in dropdown)                                 |
+| **Settings removed**         | `sidebar-user-menu.tsx` | Removed duplicate Settings dropdown item (same page as Profile)                                       |
+| **Avatar flicker fixed**     | `sidebar-user-menu.tsx` | Added `useRef` cache for user data to prevent fallback flash during navigation                        |
+| **`settingsHref` cleanup**   | All 3 sidebars          | Removed prop from interface and all sidebar usages                                                    |
+
+---
+
+## Changelog (Previous Session — Feb 24–25, 2026)
 
 ### Auth Redirect Loop Fix (Root Cause: `crossDomain` plugin)
 
@@ -24,10 +100,10 @@ The login redirect loop was caused by the `crossDomain`/`crossDomainClient` plug
 
 ### Sidebar User Menu
 
-| Change                           | File                                                            | Detail                                                                                                                                                                                             |
-| -------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[NEW] `SidebarUserMenu`**      | `apps/web/src/components/sidebar-user-menu.tsx`                 | Shared component with avatar (gradient ring fallback), name/email, dropdown (Profile, Settings, Log out). Uses `api.users.current` + `authClient.signOut()`. Works in expanded & collapsed states. |
-| **Integrated into all sidebars** | `student-sidebar.tsx`, `tutor-sidebar.tsx`, `admin-sidebar.tsx` | User menu appears above the collapse button.                                                                                                                                                       |
+| Change                           | File                                                            | Detail                                                                                                                                                                                   |
+| -------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[NEW] `SidebarUserMenu`**      | `apps/web/src/components/sidebar-user-menu.tsx`                 | Shared component with avatar (gradient ring fallback), name/email, dropdown (Profile, Log out). Uses `api.users.current` + `authClient.signOut()`. Works in expanded & collapsed states. |
+| **Integrated into all sidebars** | `student-sidebar.tsx`, `tutor-sidebar.tsx`, `admin-sidebar.tsx` | User menu appears above the collapse button.                                                                                                                                             |
 
 ### Header UI Improvements
 
@@ -113,44 +189,44 @@ All fixes applied during the route protection & UI debugging session:
 - [x] Wire learn pages with lesson/progress APIs
 - [x] Wire quiz pages with quiz APIs
 
-### Phase 4: Student Social Features
+### Phase 4: Student Social Features ✅
 
-- [ ] Wire wishlist page
-- [ ] Wire certificates page
-- [ ] Wire notifications page
-- [ ] Wire messages page
-- [ ] Wire profile page
+- [x] Wire wishlist page — `api.wishlist.list`, `api.wishlist.toggle`
+- [x] Wire certificates page — `api.certificates.myCertificates`
+- [x] Wire notifications page — `api.notifications.list`, `.markRead`, `.markAllRead`
+- [x] Wire messages page — `api.messagesApi.listConversations`, `.getThread`, `.send`, `.markRead`
+- [x] Wire profile page — `api.users.current`, `api.users.updateProfile`
 
-### Phase 5: Convex File Storage
+### Phase 5: Convex File Storage ✅
 
-- [ ] Create `packages/backend/convex/files.ts` with `generateUploadUrl`
-- [ ] Add `saveCourseThumbnail` and `saveProfileImage` mutations
-- [ ] Wire frontend upload components for profile & course pages
+- [x] Create `packages/backend/convex/files.ts` — `generateUploadUrl`, `getFileUrl`, `saveProfileImage`, `saveCourseThumbnail`
+- [x] Create `apps/web/src/components/image-upload.tsx` — reusable upload component (circle/rectangle, drag-and-drop)
+- [x] Wire profile page avatar upload → `saveProfileImage`
+- [x] Wire tutor course pages thumbnail upload → `getFileUrl` + local state
+- [x] Add `**.convex.cloud` to `next.config.ts` `images.remotePatterns`
 
-### Phase 6: AI Features (OpenRouter)
+### Phase 6: Tutor Pages
 
-- [ ] Create `packages/backend/convex/ai.ts` action
-- [ ] Set `OPENROUTER_API_KEY` in Convex dashboard
-- [ ] Wire study plan page
-- [ ] Wire skill assessment page
+- [ ] Wire tutor dashboard with `api.dashboard.tutorStats`
+- [ ] Wire tutor course creation (new page) with `api.courses.create`, `api.lessons.create`
+- [ ] Wire tutor course editing ([courseId] page) with `api.courses.update`, `api.lessons.update`
+- [ ] Wire tutor analytics page
+- [ ] Wire tutor earnings page
+- [ ] Wire tutor profile page
 
-### Phase 7: Tutor Pages
+### Phase 7: Admin Pages
 
-- [ ] Wire tutor dashboard
-- [ ] Wire tutor course CRUD
-- [ ] Wire tutor analytics & earnings
+- [ ] Wire admin dashboard with `api.dashboard.adminStats`
+- [ ] Wire admin users page with `api.users.list`, `api.users.updateRole`
+- [ ] Wire admin courses page with `api.courses.listPublic`
+- [ ] Wire admin audit log page
 
-### Phase 8: Admin Pages
-
-- [ ] Wire admin dashboard
-- [ ] Wire admin users page
-- [ ] Wire admin courses page
-
-### Phase 9: Verification
+### Phase 8: Polish & Verification
 
 - [ ] `pnpm run build` passes
 - [ ] Manual testing of all routes
 - [ ] Confirm no mock data remains
+- [ ] Cleanup unused imports and dead code
 
 ---
 

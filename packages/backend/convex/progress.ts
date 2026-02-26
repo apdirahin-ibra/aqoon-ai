@@ -99,3 +99,35 @@ export const getCourseProgress = query({
 		};
 	},
 });
+
+// ─── Get lessons with their progress for roadmap ──────────────────────────────
+export const getLessonsWithProgress = query({
+	args: { courseId: v.id("courses") },
+	handler: async (ctx, args) => {
+		const { user } = await requireAuth(ctx);
+
+		const lessons = await ctx.db
+			.query("lessons")
+			.withIndex("by_course_order", (q) => q.eq("courseId", args.courseId))
+			.collect();
+
+		if (!user) {
+			return lessons.map((l) => ({ ...l, completed: false }));
+		}
+
+		const progressRecords = await ctx.db
+			.query("lessonProgress")
+			.withIndex("by_user", (q) => q.eq("userId", user._id))
+			.collect();
+
+		const completedLessonIds = new Set(
+			progressRecords.filter((p) => p.completed).map((p) => p.lessonId),
+		);
+
+		return lessons.map((l) => ({
+			...l,
+			completed: completedLessonIds.has(l._id),
+		}));
+	},
+});
+

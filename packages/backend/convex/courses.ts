@@ -157,9 +157,27 @@ export const listByTutor = query({
 					.query("reviews")
 					.withIndex("by_course", (q) => q.eq("courseId", course._id))
 					.collect();
+				const payments = await ctx.db
+					.query("payments")
+					.withIndex("by_course", (q) => q.eq("courseId", course._id))
+					.collect();
 				const avgRating =
 					reviews.length > 0
-						? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+						? Math.round(
+								(reviews.reduce((sum, r) => sum + r.rating, 0) /
+									reviews.length) *
+									10,
+							) / 10
+						: 0;
+				const totalRevenueCents = payments
+					.filter((p) => p.status === "succeeded")
+					.reduce((sum, p) => sum + p.amountCents, 0);
+				const completedEnrollments = enrollments.filter(
+					(e) => e.status === "completed",
+				).length;
+				const completionRate =
+					enrollments.length > 0
+						? Math.round((completedEnrollments / enrollments.length) * 100)
 						: 0;
 
 				return {
@@ -167,6 +185,8 @@ export const listByTutor = query({
 					enrollmentCount: enrollments.length,
 					avgRating,
 					reviewCount: reviews.length,
+					totalRevenueCents,
+					completionRate,
 				};
 			}),
 		);

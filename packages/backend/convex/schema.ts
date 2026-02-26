@@ -101,7 +101,7 @@ export default defineSchema({
 		stripePaymentId: v.string(),
 		status: v.string(), // 'succeeded' | 'pending' | 'failed'
 		createdAt: v.number(),
-	}).index("by_user", ["userId"]),
+	}).index("by_user", ["userId"]).index("by_course", ["courseId"]),
 
 	// ─── Reviews ──────────────────────────────────────────────────────────────
 	reviews: defineTable({
@@ -184,4 +184,25 @@ export default defineSchema({
 	})
 		.index("by_sender", ["senderId"])
 		.index("by_receiver", ["receiverId"]),
+
+	// ─── Course Resources ─────────────────────────────────────────────────────
+	resources: defineTable({
+		courseId: v.id("courses"),
+		title: v.string(),
+		description: v.optional(v.string()),
+		fileUrl: v.string(),
+		fileType: v.string(), // 'document' | 'code' | 'image' | 'video'
+		fileSizeBytes: v.optional(v.number()),
+		createdAt: v.number(),
+	}).index("by_course", ["courseId"]),
+
+	// ─── Audit Logs ───────────────────────────────────────────────────────────
+	auditLogs: defineTable({
+		userId: v.optional(v.id("users")),
+		userName: v.string(),
+		action: v.string(),
+		details: v.string(),
+		category: v.string(), // 'auth' | 'course' | 'user' | 'payment' | 'system'
+		createdAt: v.number(),
+	}).index("by_category", ["category"]),
 });
