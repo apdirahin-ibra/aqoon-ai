@@ -1,4 +1,4 @@
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { authComponent } from "./auth";
 
@@ -59,4 +59,28 @@ export async function requireAdmin(ctx: QueryCtx | MutationCtx) {
  */
 export async function requireTutor(ctx: QueryCtx | MutationCtx) {
 	return requireRole(ctx, "tutor");
+}
+
+/**
+ * Enrich a userId into { name, image } for display.
+ */
+export async function enrichUser(ctx: QueryCtx, userId: Id<"users">) {
+	const user = (await ctx.db.get(userId)) as Doc<"users"> | null;
+	return {
+		name: user?.name ?? "Anonymous",
+		image: user?.image,
+	};
+}
+
+/**
+ * Calculate average rating from a list of reviews.
+ * Returns one decimal precision (e.g. 4.3).
+ */
+export function calcAvgRating(reviews: { rating: number }[]): number {
+	if (reviews.length === 0) return 0;
+	return (
+		Math.round(
+			(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10,
+		) / 10
+	);
 }

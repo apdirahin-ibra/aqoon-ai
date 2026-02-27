@@ -51,12 +51,13 @@ export const generateStudyPlan = action({
 		durationWeeks: v.number(),
 	},
 	handler: async (_ctx, args) => {
-		const model = getModel();
+		try {
+			const model = getModel();
 
-		const { output } = await generateText({
-			model,
-			output: Output.object({ schema: studyPlanSchema }),
-			prompt: `Create a personalized study plan for a student with the following details:
+			const { output } = await generateText({
+				model,
+				output: Output.object({ schema: studyPlanSchema }),
+				prompt: `Create a personalized study plan for a student with the following details:
 - Learning goal: ${args.goal || "General learning"}
 - Category: ${args.category}
 - Current level: ${args.level}
@@ -67,9 +68,27 @@ Generate exactly ${args.durationWeeks} weeks of structured learning content.
 Each week should have 3-5 specific, actionable tasks and a clear milestone.
 The difficulty should progress from ${args.level} level upward.
 Include 3-5 practical study tips tailored to this category and level.`,
-		});
+			});
 
-		return output;
+			if (!output) {
+				throw new Error("AI returned an empty response");
+			}
+
+			return output;
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error("AI study plan generation failed:", message);
+
+			// Re-throw env errors as-is so users know to configure
+			if (message.includes("OPENROUTER_API_KEY")) {
+				throw error;
+			}
+
+			throw new Error(
+				"Failed to generate your study plan. Please try again later.",
+			);
+		}
 	},
 });
 
@@ -100,16 +119,17 @@ export const assessSkills = action({
 		answers: v.array(v.string()),
 	},
 	handler: async (_ctx, args) => {
-		const model = getModel();
+		try {
+			const model = getModel();
 
-		const qaPairs = args.questions
-			.map((q, i) => `Q: ${q}\nA: ${args.answers[i] ?? "No answer"}`)
-			.join("\n\n");
+			const qaPairs = args.questions
+				.map((q, i) => `Q: ${q}\nA: ${args.answers[i] ?? "No answer"}`)
+				.join("\n\n");
 
-		const { output } = await generateText({
-			model,
-			output: Output.object({ schema: assessmentResultSchema }),
-			prompt: `You are an expert skill assessor for the "${args.category}" domain.
+			const { output } = await generateText({
+				model,
+				output: Output.object({ schema: assessmentResultSchema }),
+				prompt: `You are an expert skill assessor for the "${args.category}" domain.
 
 A student completed a skill assessment. Based on their answers below, evaluate their skill level accurately.
 
@@ -123,8 +143,25 @@ Analyze each answer to determine:
 5. Actionable recommendations for courses or topics to study next
 
 Be honest and constructive in your assessment.`,
-		});
+			});
 
-		return output;
+			if (!output) {
+				throw new Error("AI returned an empty response");
+			}
+
+			return output;
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error("AI skill assessment failed:", message);
+
+			if (message.includes("OPENROUTER_API_KEY")) {
+				throw error;
+			}
+
+			throw new Error(
+				"Failed to assess your skills. Please try again later.",
+			);
+		}
 	},
 });

@@ -191,7 +191,12 @@ export default defineSchema({
 		title: v.string(),
 		description: v.optional(v.string()),
 		fileUrl: v.string(),
-		fileType: v.string(), // 'document' | 'code' | 'image' | 'video'
+		fileType: v.union(
+			v.literal("document"),
+			v.literal("code"),
+			v.literal("image"),
+			v.literal("video"),
+		),
 		fileSizeBytes: v.optional(v.number()),
 		createdAt: v.number(),
 	}).index("by_course", ["courseId"]),
@@ -202,7 +207,13 @@ export default defineSchema({
 		userName: v.string(),
 		action: v.string(),
 		details: v.string(),
-		category: v.string(), // 'auth' | 'course' | 'user' | 'payment' | 'system'
+		category: v.union(
+			v.literal("auth"),
+			v.literal("course"),
+			v.literal("user"),
+			v.literal("payment"),
+			v.literal("system"),
+		),
 		createdAt: v.number(),
 	}).index("by_category", ["category"]),
 });

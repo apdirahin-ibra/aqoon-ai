@@ -83,7 +83,7 @@ export const check = query({
 	},
 });
 
-// ─── List my enrollments with progress ────────────────────────────────────────
+// ─── List my enrollments with progress (batched — no N+1) ────────────────────
 export const myEnrollments = query({
 	args: {},
 	handler: async (ctx) => {
@@ -96,30 +96,35 @@ export const myEnrollments = query({
 			.collect();
 
 		const active = enrollments.filter((e) => e.status !== "dropped");
+		if (active.length === 0) return [];
+
+		// Batch: fetch ALL lessonProgress for this user once
+		const allProgress = await ctx.db
+			.query("lessonProgress")
+			.withIndex("by_user", (q) => q.eq("userId", user._id))
+			.collect();
+
+		const completedLessonIds = new Set(
+			allProgress.filter((p) => p.completed).map((p) => p.lessonId),
+		);
 
 		const enriched = await Promise.all(
 			active.map(async (enrollment) => {
 				const course = await ctx.db.get(enrollment.courseId);
 				if (!course) return null;
 
-				// Calculate progress
 				const lessons = await ctx.db
 					.query("lessons")
 					.withIndex("by_course", (q) => q.eq("courseId", course._id))
 					.collect();
 
-				const completedLessons = await ctx.db
-					.query("lessonProgress")
-					.withIndex("by_user", (q) => q.eq("userId", user._id))
-					.collect();
-
-				const completedForCourse = completedLessons.filter(
-					(p) => p.completed && lessons.some((l) => l._id === p.lessonId),
-				);
+				const completedForCourse = lessons.filter((l) =>
+					completedLessonIds.has(l._id),
+				).length;
 
 				const progress =
 					lessons.length > 0
-						? Math.round((completedForCourse.length / lessons.length) * 100)
+						? Math.round((completedForCourse / lessons.length) * 100)
 						: 0;
 
 				const tutor = await ctx.db.get(course.tutorId);
@@ -132,7 +137,7 @@ export const myEnrollments = query({
 					},
 					progress,
 					lessonCount: lessons.length,
-					completedLessonCount: completedForCourse.length,
+					completedLessonCount: completedForCourse,
 				};
 			}),
 		);

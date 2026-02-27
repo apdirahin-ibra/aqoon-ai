@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./helpers";
+import { enrichUser, requireAuth } from "./helpers";
 
 // ─── Create forum post ────────────────────────────────────────────────────────
 export const createPost = mutation({
@@ -45,7 +45,7 @@ export const createReply = mutation({
 	},
 });
 
-// ─── List posts for a course ──────────────────────────────────────────────────
+// ─── List posts for a course (batched — no N+1) ──────────────────────────────
 export const listPosts = query({
 	args: { courseId: v.id("courses") },
 	handler: async (ctx, args) => {
@@ -54,22 +54,46 @@ export const listPosts = query({
 			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
 			.collect();
 
-		const enriched = await Promise.all(
-			posts.map(async (post) => {
-				const user = await ctx.db.get(post.userId);
-				const replies = await ctx.db
-					.query("forumReplies")
-					.withIndex("by_post", (q) => q.eq("postId", post._id))
-					.collect();
+		if (posts.length === 0) return [];
 
-				return {
-					...post,
-					userName: user?.name ?? "Anonymous",
-					userImage: user?.image,
-					replyCount: replies.length,
-				};
-			}),
-		);
+		// Batch: fetch all replies for the entire course at once
+		const allReplies = await ctx.db
+			.query("forumReplies")
+			.filter((q) =>
+				q.or(
+					...posts.map((p) => q.eq(q.field("postId"), p._id)),
+				),
+			)
+			.collect();
+
+		// Group replies by postId
+		const repliesByPost = new Map<string, number>();
+		for (const reply of allReplies) {
+			repliesByPost.set(
+				reply.postId,
+				(repliesByPost.get(reply.postId) ?? 0) + 1,
+			);
+		}
+
+		// Batch: unique user IDs, then enrich in one pass
+		const userIds = [...new Set(posts.map((p) => p.userId))];
+		const userMap = new Map<string, { name: string; image?: string }>();
+		for (const uid of userIds) {
+			userMap.set(uid, await enrichUser(ctx, uid));
+		}
+
+		const enriched = posts.map((post) => {
+			const user = userMap.get(post.userId) ?? {
+				name: "Anonymous",
+				image: undefined,
+			};
+			return {
+				...post,
+				userName: user.name,
+				userImage: user.image,
+				replyCount: repliesByPost.get(post._id) ?? 0,
+			};
+		});
 
 		return enriched.sort((a, b) => b.createdAt - a.createdAt);
 	},
@@ -82,27 +106,35 @@ export const getPost = query({
 		const post = await ctx.db.get(args.postId);
 		if (!post) return null;
 
-		const author = await ctx.db.get(post.userId);
+		const author = await enrichUser(ctx, post.userId);
 		const replies = await ctx.db
 			.query("forumReplies")
 			.withIndex("by_post", (q) => q.eq("postId", post._id))
 			.collect();
 
-		const enrichedReplies = await Promise.all(
-			replies.map(async (reply) => {
-				const user = await ctx.db.get(reply.userId);
-				return {
-					...reply,
-					userName: user?.name ?? "Anonymous",
-					userImage: user?.image,
-				};
-			}),
-		);
+		// Batch user lookups for replies
+		const replyUserIds = [...new Set(replies.map((r) => r.userId))];
+		const replyUserMap = new Map<string, { name: string; image?: string }>();
+		for (const uid of replyUserIds) {
+			replyUserMap.set(uid, await enrichUser(ctx, uid));
+		}
+
+		const enrichedReplies = replies.map((reply) => {
+			const user = replyUserMap.get(reply.userId) ?? {
+				name: "Anonymous",
+				image: undefined,
+			};
+			return {
+				...reply,
+				userName: user.name,
+				userImage: user.image,
+			};
+		});
 
 		return {
 			...post,
-			userName: author?.name ?? "Anonymous",
-			userImage: author?.image,
+			userName: author.name,
+			userImage: author.image,
 			replies: enrichedReplies.sort((a, b) => a.createdAt - b.createdAt),
 		};
 	},

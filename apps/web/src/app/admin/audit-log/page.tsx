@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatRelativeTime } from "@/lib/utils";
 
 const categoryColors: Record<string, string> = {
   auth: "bg-blue-500/10 text-blue-500",
@@ -37,18 +38,6 @@ export default function AdminAuditLogPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const auditLogs = useQuery(api.auditLogs.list);
-
-  const formatTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
 
   if (auditLogs === undefined) {
     return (
@@ -138,7 +127,7 @@ export default function AdminAuditLogPage() {
               {filteredLogs.map((entry) => (
                 <TableRow key={entry._id}>
                   <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                    {formatTime(entry.createdAt)}
+                    {formatRelativeTime(entry.createdAt)}
                   </TableCell>
                   <TableCell className="font-medium">
                     {entry.userName}

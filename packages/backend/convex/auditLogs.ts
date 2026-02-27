@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { requireAdmin } from "./helpers";
 
-// ─── List audit logs ──────────────────────────────────────────────────────────
+// ─── List audit logs (admin only) ─────────────────────────────────────────────
 export const list = query({
 	args: {},
 	handler: async (ctx) => {
@@ -13,18 +13,22 @@ export const list = query({
 	},
 });
 
-// ─── Log an audit event (internal helper, called from other mutations) ────────
-export const log = mutation({
+// ─── Log an audit event (internal — called from other mutations) ──────────────
+export const log = internalMutation({
 	args: {
 		userName: v.string(),
 		action: v.string(),
 		details: v.string(),
-		category: v.string(),
+		category: v.union(
+			v.literal("auth"),
+			v.literal("course"),
+			v.literal("user"),
+			v.literal("payment"),
+			v.literal("system"),
+		),
 		userId: v.optional(v.id("users")),
 	},
 	handler: async (ctx, args) => {
-		await requireAdmin(ctx);
-
 		return await ctx.db.insert("auditLogs", {
 			userId: args.userId,
 			userName: args.userName,

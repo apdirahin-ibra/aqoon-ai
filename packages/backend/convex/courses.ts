@@ -253,7 +253,7 @@ export const update = mutation({
 	},
 });
 
-// ─── Delete course (admin only) ───────────────────────────────────────────────
+// ─── Delete course (admin only) — cascades all related data ──────────────────
 export const remove = mutation({
 	args: { courseId: v.id("courses") },
 	handler: async (ctx, args) => {
@@ -262,6 +262,73 @@ export const remove = mutation({
 		const course = await ctx.db.get(args.courseId);
 		if (!course) throw new Error("Course not found");
 
+		// Cascade delete related data
+		const lessons = await ctx.db
+			.query("lessons")
+			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+			.collect();
+
+		for (const lesson of lessons) {
+			// Delete lesson progress
+			const progress = await ctx.db
+				.query("lessonProgress")
+				.filter((q) => q.eq(q.field("lessonId"), lesson._id))
+				.collect();
+			for (const p of progress) await ctx.db.delete(p._id);
+
+			// Delete quizzes + attempts for this lesson
+			const quizzes = await ctx.db
+				.query("quizzes")
+				.withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+				.collect();
+			for (const quiz of quizzes) {
+				const attempts = await ctx.db
+					.query("quizAttempts")
+					.filter((q) => q.eq(q.field("quizId"), quiz._id))
+					.collect();
+				for (const a of attempts) await ctx.db.delete(a._id);
+				await ctx.db.delete(quiz._id);
+			}
+
+			await ctx.db.delete(lesson._id);
+		}
+
+		// Delete enrollments
+		const enrollments = await ctx.db
+			.query("enrollments")
+			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+			.collect();
+		for (const e of enrollments) await ctx.db.delete(e._id);
+
+		// Delete reviews
+		const reviews = await ctx.db
+			.query("reviews")
+			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+			.collect();
+		for (const r of reviews) await ctx.db.delete(r._id);
+
+		// Delete forum posts + replies
+		const forumPosts = await ctx.db
+			.query("forumPosts")
+			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+			.collect();
+		for (const post of forumPosts) {
+			const replies = await ctx.db
+				.query("forumReplies")
+				.withIndex("by_post", (q) => q.eq("postId", post._id))
+				.collect();
+			for (const reply of replies) await ctx.db.delete(reply._id);
+			await ctx.db.delete(post._id);
+		}
+
+		// Delete resources
+		const resources = await ctx.db
+			.query("resources")
+			.withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+			.collect();
+		for (const res of resources) await ctx.db.delete(res._id);
+
+		// Finally delete the course
 		await ctx.db.delete(args.courseId);
 		return args.courseId;
 	},

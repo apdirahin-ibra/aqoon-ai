@@ -2,14 +2,11 @@
 
 import {
   ArrowRight,
-  HelpCircle,
   MessageCircle,
   MessageSquare,
   Search,
   Send,
-  ThumbsUp,
   TrendingUp,
-  Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -22,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatRelativeTime } from "@/lib/utils";
 
 export default function CourseForumPage() {
   const params = useParams();
@@ -44,19 +42,6 @@ export default function CourseForumPage() {
   );
   const createPost = useMutation(api.forum.createPost);
   const createReply = useMutation(api.forum.createReply);
-
-  const formatTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / (1000 * 60));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return new Date(timestamp).toLocaleDateString();
-  };
 
   const handleCreatePost = async () => {
     if (!newTitle.trim() || !newContent.trim()) return;
@@ -155,7 +140,7 @@ export default function CourseForumPage() {
                   </CardTitle>
                   <p className="text-muted-foreground text-sm">
                     {selectedPost.userName} ·{" "}
-                    {formatTime(selectedPost.createdAt)}
+                    {formatRelativeTime(selectedPost.createdAt)}
                   </p>
                 </div>
               </div>
@@ -196,7 +181,7 @@ export default function CourseForumPage() {
                           {reply.userName}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {formatTime(reply.createdAt)}
+                          {formatRelativeTime(reply.createdAt)}
                         </span>
                       </div>
                       <p className="text-sm">{reply.content}</p>
@@ -376,7 +361,7 @@ export default function CourseForumPage() {
                     </p>
                     <div className="mt-2 flex items-center gap-4 text-muted-foreground text-xs">
                       <span>{post.userName}</span>
-                      <span>{formatTime(post.createdAt)}</span>
+                      <span>{formatRelativeTime(post.createdAt)}</span>
                       <span className="flex items-center gap-1">
                         <MessageCircle className="h-3 w-3" />
                         {post.replyCount} replies
