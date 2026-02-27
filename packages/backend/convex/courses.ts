@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
+	calcAvgRating,
 	optionalAuth,
 	requireAdmin,
 	requireAuth,
@@ -59,17 +60,18 @@ export const listPublic = query({
 					.query("reviews")
 					.withIndex("by_course", (q) => q.eq("courseId", course._id))
 					.collect();
-				const avgRating =
-					reviews.length > 0
-						? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-						: 0;
+				const lessons = await ctx.db
+					.query("lessons")
+					.withIndex("by_course", (q) => q.eq("courseId", course._id))
+					.collect();
 
 				return {
 					...course,
 					tutorName: tutor?.name ?? "Unknown",
 					tutorImage: tutor?.image,
 					enrollmentCount: enrollments.length,
-					avgRating,
+					lessonCount: lessons.length,
+					avgRating: calcAvgRating(reviews),
 					reviewCount: reviews.length,
 				};
 			}),
