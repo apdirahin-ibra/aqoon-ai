@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  BarChart3,
+  Bell,
   BookOpen,
   FileText,
   LayoutDashboard,
+  PieChart,
   Shield,
   Users,
 } from "lucide-react";
@@ -14,8 +17,11 @@ import {
 
 const adminMenuItems: SidebarMenuItem[] = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { title: "Courses", href: "/admin/courses", icon: BookOpen },
   { title: "Users", href: "/admin/users", icon: Users },
+  { title: "Courses", href: "/admin/courses", icon: BookOpen },
+  { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { title: "Reports", href: "/admin/reports", icon: PieChart },
+  { title: "Notifications", href: "/admin/notifications", icon: Bell },
   { title: "Audit Log", href: "/admin/audit-log", icon: FileText },
 ];
 

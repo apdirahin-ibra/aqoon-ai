@@ -1,5 +1,7 @@
 "use client";
 
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import {
   ArrowLeft,
   GripVertical,
@@ -9,11 +11,12 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useConvex, useMutation } from "convex/react";
-import { api } from "@aqoon-ai/backend/convex/_generated/api";
-import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
+import { toast } from "sonner";
 import { ImageUpload } from "@/components/image-upload";
+import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +53,10 @@ interface CourseData {
 }
 
 export default function NewCoursePage() {
+  const router = useRouter();
   const convex = useConvex();
+  const createCourse = useMutation(api.courses.create);
+  const createLesson = useMutation(api.lessons.create);
   const [saving, setSaving] = useState(false);
   const [courseData, setCourseData] = useState<CourseData>({
     title: "",
@@ -89,16 +95,47 @@ export default function NewCoursePage() {
   };
 
   const handleSave = async () => {
+    if (!courseData.title.trim()) {
+      toast.error("Course title is required");
+      return;
+    }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setSaving(false);
-  };
+    try {
+      // 1. Create the course
+      const courseId = await createCourse({
+        title: courseData.title,
+        description: courseData.description || undefined,
+        category: courseData.category,
+        level: courseData.level,
+        isPremium: courseData.isPremium,
+        priceCents: courseData.isPremium ? courseData.priceCents : undefined,
+        thumbnailUrl: courseData.thumbnailUrl || undefined,
+      });
 
-  const formatPrice = (cents: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
+      // 2. Create lessons
+      for (const lesson of lessons) {
+        if (lesson.title.trim()) {
+          await createLesson({
+            courseId,
+            title: lesson.title,
+            content: lesson.content || "",
+            orderIndex: lesson.orderIndex,
+            durationMinutes: lesson.durationMinutes || undefined,
+            isPreview: lesson.isPreview,
+          });
+        }
+      }
+
+      toast.success("Course created successfully!");
+      router.push(`/tutor/courses/${courseId}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create course",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="container py-8">
@@ -364,7 +401,7 @@ export default function NewCoursePage() {
                     }
                   />
                   <p className="text-muted-foreground text-xs">
-                    Current price: {formatPrice(courseData.priceCents)}
+                    Current price: {formatCurrency(courseData.priceCents)}
                   </p>
                 </div>
               )}
@@ -379,7 +416,7 @@ export default function NewCoursePage() {
               <ImageUpload
                 shape="rectangle"
                 currentImageUrl={courseData.thumbnailUrl || null}
-                onUploaded={async (storageId) => {
+                onUploaded={async (storageId: string) => {
                   const url = await convex.query(api.files.getFileUrl, {
                     storageId: storageId as Id<"_storage">,
                   });

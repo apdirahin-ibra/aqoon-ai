@@ -1,5 +1,9 @@
 "use client";
 
+import { formatCurrency } from "@/lib/utils";
+
+import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import {
   ArrowLeft,
   GripVertical,
@@ -9,11 +13,10 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { useConvex } from "convex/react";
-import { api } from "@aqoon-ai/backend/convex/_generated/api";
-import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
-import { ImageUpload } from "@/components/image-upload";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,116 +29,217 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-interface Lesson {
+interface LocalLesson {
+  /** DB id or temp-* for new lessons */
   id: string;
   title: string;
   content: string;
   durationMinutes: number;
   isPreview: boolean;
   orderIndex: number;
+  isNew?: boolean;
+  isDeleted?: boolean;
 }
-
-interface CourseData {
-  title: string;
-  description: string;
-  category: string;
-  level: string;
-  isPremium: boolean;
-  isPublished: boolean;
-  priceCents: number;
-  thumbnailUrl: string;
-}
-
-const mockLessons: Lesson[] = [
-  {
-    id: "l1",
-    title: "Getting Started with Python",
-    content:
-      "In this lesson, we will set up Python and write our first program...",
-    durationMinutes: 20,
-    isPreview: true,
-    orderIndex: 0,
-  },
-  {
-    id: "l2",
-    title: "Variables and Data Types",
-    content:
-      "Learn about strings, numbers, booleans and how to work with them...",
-    durationMinutes: 25,
-    isPreview: false,
-    orderIndex: 1,
-  },
-  {
-    id: "l3",
-    title: "Control Flow: If Statements and Loops",
-    content: "Master conditional logic and iteration in Python...",
-    durationMinutes: 30,
-    isPreview: false,
-    orderIndex: 2,
-  },
-];
 
 export default function EditCoursePage() {
-  const convex = useConvex();
-  const [saving, setSaving] = useState(false);
-  const [courseData, setCourseData] = useState<CourseData>({
-    title: "Introduction to Python Programming",
-    description:
-      "Learn Python from scratch with hands-on exercises and real-world projects. This course covers everything from basic syntax to advanced concepts.",
-    category: "coding",
-    level: "beginner",
-    isPremium: false,
-    isPublished: true,
-    priceCents: 0,
-    thumbnailUrl: "",
-  });
-  const [lessons, setLessons] = useState<Lesson[]>(mockLessons);
+  const params = useParams();
+  const courseId = params.courseId as Id<"courses">;
 
-  const addLesson = () => {
-    const newLesson: Lesson = {
+  const course = useQuery(api.courses.get, { courseId });
+  const dbLessons = useQuery(api.lessons.listByCourse, { courseId });
+
+  const updateCourse = useMutation(api.courses.update);
+  const publishCourse = useMutation(api.courses.publish);
+  const unpublishCourse = useMutation(api.courses.unpublish);
+  const createLesson = useMutation(api.lessons.create);
+  const updateLesson = useMutation(api.lessons.update);
+  const removeLesson = useMutation(api.lessons.remove);
+
+  const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  // Local state for editing
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("coding");
+  const [level, setLevel] = useState("beginner");
+  const [isPremium, setIsPremium] = useState(false);
+  const [priceCents, setPriceCents] = useState(0);
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [lessons, setLessons] = useState<LocalLesson[]>([]);
+
+  // Initialize from DB data once
+  useEffect(() => {
+    if (course && dbLessons && !initialized) {
+      setTitle(course.title);
+      setDescription(course.description ?? "");
+      setCategory(course.category);
+      setLevel(course.level);
+      setIsPremium(course.isPremium ?? false);
+      setPriceCents(course.priceCents ?? 0);
+      setThumbnailUrl(course.thumbnailUrl ?? "");
+      setLessons(
+        dbLessons.map((l) => ({
+          id: l._id,
+          title: l.title,
+          content: "", // content not returned by listByCourse
+          durationMinutes: l.durationMinutes ?? 15,
+          isPreview: l.isPreview ?? false,
+          orderIndex: l.orderIndex,
+        })),
+      );
+      setInitialized(true);
+    }
+  }, [course, dbLessons, initialized]);
+
+  const handleAddLesson = () => {
+    const newLesson: LocalLesson = {
       id: `temp-${Date.now()}`,
       title: "",
       content: "",
       durationMinutes: 15,
       isPreview: false,
-      orderIndex: lessons.length,
+      orderIndex: lessons.filter((l) => !l.isDeleted).length,
+      isNew: true,
     };
     setLessons([...lessons, newLesson]);
   };
 
-  const updateLesson = (index: number, updates: Partial<Lesson>) => {
+  const handleUpdateLesson = (index: number, updates: Partial<LocalLesson>) => {
     setLessons(lessons.map((l, i) => (i === index ? { ...l, ...updates } : l)));
   };
 
-  const removeLesson = (index: number) => {
-    setLessons(
-      lessons
+  const handleRemoveLesson = (index: number) => {
+    const lesson = lessons[index];
+    if (lesson.isNew) {
+      // New lesson — just remove from state
+      const updated = lessons
         .filter((_, i) => i !== index)
-        .map((l, i) => ({ ...l, orderIndex: i })),
-    );
+        .map((l, i) => ({ ...l, orderIndex: i }));
+      setLessons(updated);
+    } else {
+      // Existing lesson — mark for deletion
+      setLessons(
+        lessons.map((l, i) => (i === index ? { ...l, isDeleted: true } : l)),
+      );
+    }
   };
 
   const handleSave = async () => {
+    if (!title.trim()) {
+      toast.error("Course title is required");
+      return;
+    }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setSaving(false);
+    try {
+      // 1. Update course metadata
+      await updateCourse({
+        courseId,
+        title,
+        description: description || undefined,
+        category,
+        level,
+        isPremium,
+        priceCents: isPremium ? priceCents : undefined,
+        thumbnailUrl: thumbnailUrl || undefined,
+      });
+
+      // 2. Process lessons
+      const activeLessons = lessons.filter((l) => !l.isDeleted);
+
+      for (const lesson of lessons) {
+        if (lesson.isDeleted && !lesson.isNew) {
+          // Delete existing lessons
+          await removeLesson({
+            lessonId: lesson.id as Id<"lessons">,
+          });
+        } else if (lesson.isNew && !lesson.isDeleted) {
+          // Create new lessons
+          if (lesson.title.trim()) {
+            await createLesson({
+              courseId,
+              title: lesson.title,
+              content: lesson.content || "",
+              orderIndex: lesson.orderIndex,
+              durationMinutes: lesson.durationMinutes || undefined,
+              isPreview: lesson.isPreview,
+            });
+          }
+        } else if (!lesson.isNew && !lesson.isDeleted) {
+          // Update existing lessons
+          await updateLesson({
+            lessonId: lesson.id as Id<"lessons">,
+            title: lesson.title,
+            orderIndex: lesson.orderIndex,
+            durationMinutes: lesson.durationMinutes || undefined,
+            isPreview: lesson.isPreview,
+          });
+        }
+      }
+
+      toast.success("Course saved successfully!");
+      // Re-initialize to get fresh data
+      setInitialized(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save course",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const formatPrice = (cents: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
+  const handleTogglePublish = async () => {
+    try {
+      if (course?.isPublished) {
+        await unpublishCourse({ courseId });
+        toast.success("Course unpublished");
+      } else {
+        await publishCourse({ courseId });
+        toast.success("Course published!");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
+    }
+  };
+
+  // Loading state
+  if (course === undefined || dbLessons === undefined) {
+    return (
+      <div className="container py-8">
+        <Skeleton className="mb-2 h-8 w-48" />
+        <Skeleton className="mb-8 h-4 w-64" />
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-48 rounded-2xl" />
+          </div>
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-muted-foreground">Course not found.</p>
+      </div>
+    );
+  }
+
+  const activeLessons = lessons.filter((l) => !l.isDeleted);
 
   return (
     <div className="container py-8">
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button asChild variant="ghost" size="icon">
-            <Link href="/tutor">
+            <Link href="/tutor/courses">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -149,8 +253,11 @@ export default function EditCoursePage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={courseData.isPublished ? "default" : "secondary"}>
-            {courseData.isPublished ? "Published" : "Draft"}
+          <Button variant="outline" size="sm" onClick={handleTogglePublish}>
+            {course.isPublished ? "Unpublish" : "Publish"}
+          </Button>
+          <Badge variant={course.isPublished ? "default" : "secondary"}>
+            {course.isPublished ? "Published" : "Draft"}
           </Badge>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? (
@@ -158,12 +265,13 @@ export default function EditCoursePage() {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Save Changes
+            Save Course
           </Button>
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
+        {/* Main Content */}
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
@@ -174,10 +282,9 @@ export default function EditCoursePage() {
                 <Label htmlFor="title">Course Title</Label>
                 <Input
                   id="title"
-                  value={courseData.title}
-                  onChange={(e) =>
-                    setCourseData({ ...courseData, title: e.target.value })
-                  }
+                  placeholder="e.g., Introduction to Python Programming"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
 
@@ -185,26 +292,17 @@ export default function EditCoursePage() {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
+                  placeholder="Describe what students will learn..."
                   rows={5}
-                  value={courseData.description}
-                  onChange={(e) =>
-                    setCourseData({
-                      ...courseData,
-                      description: e.target.value,
-                    })
-                  }
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select
-                    value={courseData.category}
-                    onValueChange={(v) =>
-                      setCourseData({ ...courseData, category: v })
-                    }
-                  >
+                  <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -220,12 +318,7 @@ export default function EditCoursePage() {
 
                 <div className="space-y-2">
                   <Label>Level</Label>
-                  <Select
-                    value={courseData.level}
-                    onValueChange={(v) =>
-                      setCourseData({ ...courseData, level: v })
-                    }
-                  >
+                  <Select value={level} onValueChange={setLevel}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -240,180 +333,184 @@ export default function EditCoursePage() {
             </CardContent>
           </Card>
 
+          {/* Lessons */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Lessons ({lessons.length})</CardTitle>
-              <Button onClick={addLesson} variant="outline" size="sm">
+              <CardTitle>Lessons ({activeLessons.length})</CardTitle>
+              <Button onClick={handleAddLesson} variant="outline" size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Lesson
               </Button>
             </CardHeader>
             <CardContent>
-              {lessons.length > 0 ? (
+              {activeLessons.length > 0 ? (
                 <div className="space-y-4">
-                  {lessons.map((lesson, index) => (
-                    <div
-                      key={lesson.id}
-                      className="rounded-lg border border-border p-4"
-                    >
-                      <div className="mb-3 flex items-center gap-3">
-                        <GripVertical className="h-5 w-5 cursor-grab text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground text-sm">
-                          Lesson {index + 1}
-                        </span>
-                        <div className="flex-1" />
-                        <div className="flex items-center gap-2">
-                          <Label
-                            htmlFor={`preview-${index}`}
-                            className="text-xs"
-                          >
-                            Preview
-                          </Label>
-                          <Switch
-                            id={`preview-${index}`}
-                            checked={lesson.isPreview}
-                            onCheckedChange={(v) =>
-                              updateLesson(index, { isPreview: v })
-                            }
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLesson(index)}
-                          className="h-8 w-8 text-destructive"
+                  {lessons.map(
+                    (lesson, index) =>
+                      !lesson.isDeleted && (
+                        <div
+                          key={lesson.id}
+                          className="rounded-lg border border-border p-4"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          <div className="mb-3 flex items-center gap-3">
+                            <GripVertical className="h-5 w-5 cursor-grab text-muted-foreground" />
+                            <span className="font-medium text-muted-foreground text-sm">
+                              Lesson {lesson.orderIndex + 1}
+                              {lesson.isNew && (
+                                <Badge
+                                  variant="outline"
+                                  className="ml-2 text-xs"
+                                >
+                                  New
+                                </Badge>
+                              )}
+                            </span>
+                            <div className="flex-1" />
+                            <div className="flex items-center gap-2">
+                              <Label
+                                htmlFor={`preview-${index}`}
+                                className="text-xs"
+                              >
+                                Preview
+                              </Label>
+                              <Switch
+                                id={`preview-${index}`}
+                                checked={lesson.isPreview}
+                                onCheckedChange={(v) =>
+                                  handleUpdateLesson(index, {
+                                    isPreview: v,
+                                  })
+                                }
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => handleRemoveLesson(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
 
-                      <div className="space-y-3">
-                        <Input
-                          placeholder="Lesson title"
-                          value={lesson.title}
-                          onChange={(e) =>
-                            updateLesson(index, { title: e.target.value })
-                          }
-                        />
-                        <Textarea
-                          placeholder="Lesson content (supports Markdown)"
-                          rows={3}
-                          value={lesson.content}
-                          onChange={(e) =>
-                            updateLesson(index, { content: e.target.value })
-                          }
-                        />
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs">Duration (min)</Label>
-                          <Input
-                            type="number"
-                            className="w-24"
-                            min={1}
-                            value={lesson.durationMinutes}
-                            onChange={(e) =>
-                              updateLesson(index, {
-                                durationMinutes:
-                                  Number.parseInt(e.target.value, 10) || 0,
-                              })
-                            }
-                          />
+                          <div className="space-y-3">
+                            <Input
+                              placeholder="Lesson title"
+                              value={lesson.title}
+                              onChange={(e) =>
+                                handleUpdateLesson(index, {
+                                  title: e.target.value,
+                                })
+                              }
+                            />
+                            {lesson.isNew && (
+                              <Textarea
+                                placeholder="Lesson content..."
+                                rows={3}
+                                value={lesson.content}
+                                onChange={(e) =>
+                                  handleUpdateLesson(index, {
+                                    content: e.target.value,
+                                  })
+                                }
+                              />
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs">Duration (min)</Label>
+                              <Input
+                                type="number"
+                                className="w-24"
+                                value={lesson.durationMinutes}
+                                onChange={(e) =>
+                                  handleUpdateLesson(index, {
+                                    durationMinutes:
+                                      Number(e.target.value) || 15,
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      ),
+                  )}
                 </div>
               ) : (
-                <div className="py-8 text-center text-muted-foreground">
-                  <p className="mb-2">No lessons yet</p>
-                  <Button onClick={addLesson} variant="outline" size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Your First Lesson
-                  </Button>
+                <div className="py-10 text-center text-muted-foreground">
+                  <Plus className="mx-auto mb-3 h-10 w-10" />
+                  <p className="font-medium">No lessons yet</p>
+                  <p className="mt-1 text-sm">
+                    Add your first lesson to get started
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
+        {/* Sidebar */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Publishing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="published">Published</Label>
-                <Switch
-                  id="published"
-                  checked={courseData.isPublished}
-                  onCheckedChange={(v) =>
-                    setCourseData({ ...courseData, isPublished: v })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-
+          {/* Pricing */}
           <Card>
             <CardHeader>
               <CardTitle>Pricing</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="premium">Premium Course</Label>
-                <Switch
-                  id="premium"
-                  checked={courseData.isPremium}
-                  onCheckedChange={(v) =>
-                    setCourseData({ ...courseData, isPremium: v })
-                  }
-                />
+                <Label>Premium Course</Label>
+                <Switch checked={isPremium} onCheckedChange={setIsPremium} />
               </div>
-
-              {courseData.isPremium && (
+              {isPremium && (
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price (USD)</Label>
+                  <Label>Price</Label>
                   <Input
-                    id="price"
                     type="number"
+                    value={priceCents / 100}
+                    onChange={(e) =>
+                      setPriceCents(Math.round(Number(e.target.value) * 100))
+                    }
                     min={0}
                     step={0.01}
-                    value={courseData.priceCents / 100}
-                    onChange={(e) =>
-                      setCourseData({
-                        ...courseData,
-                        priceCents: Math.round(
-                          Number.parseFloat(e.target.value || "0") * 100,
-                        ),
-                      })
-                    }
                   />
                   <p className="text-muted-foreground text-xs">
-                    Current price: {formatPrice(courseData.priceCents)}
+                    {formatCurrency(priceCents)}
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
 
+          {/* Course Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Thumbnail</CardTitle>
+              <CardTitle>Summary</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ImageUpload
-                shape="rectangle"
-                currentImageUrl={courseData.thumbnailUrl || null}
-                onUploaded={async (storageId) => {
-                  const url = await convex.query(api.files.getFileUrl, {
-                    storageId: storageId as Id<"_storage">,
-                  });
-                  if (url) {
-                    setCourseData((prev) => ({ ...prev, thumbnailUrl: url }));
-                  }
-                }}
-                className="aspect-video"
-              />
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <Badge variant={course.isPublished ? "default" : "secondary"}>
+                  {course.isPublished ? "Published" : "Draft"}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Lessons</span>
+                <span className="font-medium">{activeLessons.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Category</span>
+                <span className="font-medium capitalize">{category}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Level</span>
+                <span className="font-medium capitalize">{level}</span>
+              </div>
+              {isPremium && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="font-medium">
+                    {formatCurrency(priceCents)}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

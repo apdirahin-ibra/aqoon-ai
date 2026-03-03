@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCurrency } from "@/lib/utils";
+
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
 import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
@@ -35,14 +37,6 @@ export default function WishlistPage() {
   const items = wishlist.filter(
     (item): item is NonNullable<typeof item> => item != null,
   );
-
-  const formatPrice = (cents: number) => {
-    if (cents === 0) return "Free";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
-  };
 
   return (
     <div className="container py-8">
@@ -105,7 +99,9 @@ export default function WishlistPage() {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm">
-                    {formatPrice(item.course.priceCents ?? 0)}
+                    {item.course.priceCents
+                      ? formatCurrency(item.course.priceCents)
+                      : "Free"}
                   </span>
                   <Button size="sm" className="h-7 rounded-lg text-xs" asChild>
                     <Link href={`/courses/${item.courseId}`}>
