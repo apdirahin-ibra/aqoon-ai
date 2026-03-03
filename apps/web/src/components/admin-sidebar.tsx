@@ -28,7 +28,7 @@ export function AdminSidebar() {
       logoText="Admin"
       logoBgColor="bg-red-600"
       homeHref="/admin"
-      profileHref="/student/profile"
+      profileHref="/admin/profile"
     />
   );
 }

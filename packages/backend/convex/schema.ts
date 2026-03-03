@@ -11,6 +11,33 @@ export default defineSchema({
 		role: v.union(v.literal("admin"), v.literal("tutor"), v.literal("student")),
 		bio: v.optional(v.string()),
 		specialties: v.optional(v.array(v.string())),
+		// Profile preferences
+		theme: v.optional(v.string()), // "light" | "dark" | "system"
+		language: v.optional(v.string()), // "en" | "so" | "ar"
+		timezone: v.optional(v.string()), // IANA timezone
+		notificationPrefs: v.optional(
+			v.object({
+				emailNotifications: v.boolean(),
+				courseUpdates: v.boolean(),
+				marketingEmails: v.boolean(),
+			}),
+		),
+		// Student-only preferences
+		learningPrefs: v.optional(
+			v.object({
+				weeklyGoalHours: v.number(),
+				preferredPace: v.string(), // "self-paced" | "structured"
+				studyReminders: v.boolean(),
+			}),
+		),
+		// Tutor-only payout info
+		payoutInfo: v.optional(
+			v.object({
+				bankName: v.string(),
+				accountLast4: v.string(),
+				payoutMethod: v.string(), // "bank" | "paypal"
+			}),
+		),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	}).index("by_email", ["email"]),
@@ -216,4 +243,12 @@ export default defineSchema({
 		),
 		createdAt: v.number(),
 	}).index("by_category", ["category"]),
+
+	// ─── Platform Settings (admin) ────────────────────────────────────────────
+	platformSettings: defineTable({
+		key: v.string(),
+		value: v.string(),
+		updatedAt: v.number(),
+		updatedBy: v.id("users"),
+	}).index("by_key", ["key"]),
 });

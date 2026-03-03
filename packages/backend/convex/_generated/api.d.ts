@@ -24,6 +24,7 @@ import type * as lessons from "../lessons.js";
 import type * as messagesApi from "../messagesApi.js";
 import type * as notifications from "../notifications.js";
 import type * as payments from "../payments.js";
+import type * as platformSettings from "../platformSettings.js";
 import type * as privateData from "../privateData.js";
 import type * as progress from "../progress.js";
 import type * as quizzes from "../quizzes.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   messagesApi: typeof messagesApi;
   notifications: typeof notifications;
   payments: typeof payments;
+  platformSettings: typeof platformSettings;
   privateData: typeof privateData;
   progress: typeof progress;
   quizzes: typeof quizzes;

@@ -2,10 +2,14 @@
 
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
-import { Bell, Loader2, Shield, User } from "lucide-react";
+import { Bell, BookOpen, Loader2, Settings, Shield, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ImageUpload } from "@/components/image-upload";
+import { DangerZoneCard } from "@/components/profile/danger-zone-card";
+import { NotificationsCard } from "@/components/profile/notifications-card";
+import { PreferencesCard } from "@/components/profile/preferences-card";
+import { ProfileInfoCard } from "@/components/profile/profile-info-card";
+import { SecurityCard } from "@/components/profile/security-card";
+import { ThemeCard } from "@/components/profile/theme-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,62 +18,49 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 
-export default function ProfilePage() {
+export default function StudentProfilePage() {
   const user = useQuery(api.users.current);
   const updateProfile = useMutation(api.users.updateProfile);
-  const saveProfileImage = useMutation(api.files.saveProfileImage);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
-  const [saving, setSaving] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [bio, setBio] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [courseUpdates, setCourseUpdates] = useState(true);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  // Learning preferences state
+  const [weeklyGoalHours, setWeeklyGoalHours] = useState(5);
+  const [preferredPace, setPreferredPace] = useState("self-paced");
+  const [studyReminders, setStudyReminders] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setFullName(user.name ?? "");
-      setBio(user.bio ?? "");
+    if (user?.learningPrefs) {
+      setWeeklyGoalHours(user.learningPrefs.weeklyGoalHours);
+      setPreferredPace(user.learningPrefs.preferredPace);
+      setStudyReminders(user.learningPrefs.studyReminders);
     }
   }, [user]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  const handleSaveLearningPrefs = async () => {
+    setSavingPrefs(true);
     try {
-      await updateProfile({ name: fullName, bio });
+      await updateProfile({
+        learningPrefs: {
+          weeklyGoalHours,
+          preferredPace,
+          studyReminders,
+        },
+      });
     } finally {
-      setSaving(false);
+      setSavingPrefs(false);
     }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      alert("Passwords don't match");
-      return;
-    }
-    if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters");
-      return;
-    }
-    setChangingPassword(true);
-    setTimeout(() => {
-      setChangingPassword(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      alert("Password changed successfully");
-    }, 1000);
   };
 
   if (user === undefined) {
@@ -111,279 +102,134 @@ export default function ProfilePage() {
         orientation="horizontal"
         className="flex w-full flex-col space-y-5"
       >
-        <TabsList className="inline-flex h-auto w-auto rounded-xl bg-muted/50 p-1">
+        <TabsList className="inline-flex h-auto w-auto flex-wrap rounded-xl bg-muted/50 p-1">
           <TabsTrigger
             value="profile"
-            className="rounded-lg px-6 py-2.5 text-base"
+            className="rounded-lg px-4 py-2.5 text-sm"
           >
             <User className="mr-1.5 h-3.5 w-3.5" />
             Profile
           </TabsTrigger>
           <TabsTrigger
+            value="learning"
+            className="rounded-lg px-4 py-2.5 text-sm"
+          >
+            <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+            Learning
+          </TabsTrigger>
+          <TabsTrigger
             value="security"
-            className="rounded-lg px-6 py-2.5 text-base"
+            className="rounded-lg px-4 py-2.5 text-sm"
           >
             <Shield className="mr-1.5 h-3.5 w-3.5" />
             Security
           </TabsTrigger>
           <TabsTrigger
-            value="notifications"
-            className="rounded-lg px-6 py-2.5 text-base"
+            value="preferences"
+            className="rounded-lg px-4 py-2.5 text-sm"
           >
-            <Bell className="mr-1.5 h-3.5 w-3.5" />
-            Notifications
+            <Settings className="mr-1.5 h-3.5 w-3.5" />
+            Preferences
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="w-full">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="rounded-2xl shadow-sm md:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Profile Information</CardTitle>
-                <CardDescription className="text-xs">
-                  Update your personal information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <ImageUpload
-                      shape="circle"
-                      currentImageUrl={user.image}
-                      onUploaded={async (storageId) => {
-                        await saveProfileImage({
-                          storageId: storageId as Id<"_storage">,
-                        });
-                      }}
-                    />
-                    <div>
-                      <h3 className="font-semibold text-sm">
-                        {user.name || "Your Name"}
-                      </h3>
-                      <p className="text-muted-foreground text-xs">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="fullName" className="text-xs">
-                        Full Name
-                      </Label>
-                      <Input
-                        id="fullName"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="rounded-xl text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="email" className="text-xs">
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={user.email}
-                        disabled
-                        className="rounded-xl bg-muted text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={saving}
-                    className="rounded-xl"
-                  >
-                    {saving && (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    )}
-                    Save Changes
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-sm md:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Bio</CardTitle>
-                <CardDescription className="text-xs">
-                  Tell us about yourself
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell us about yourself..."
-                  rows={8}
-                  className="rounded-xl text-sm"
-                />
-              </CardContent>
-            </Card>
+          <div className="space-y-4">
+            <ProfileInfoCard user={user} />
           </div>
         </TabsContent>
 
-        <TabsContent value="security" className="w-full">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="rounded-2xl shadow-sm md:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Change Password</CardTitle>
-                <CardDescription className="text-xs">
-                  Update your password to keep your account secure
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleChangePassword} className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="newPassword" className="text-xs">
-                      New Password
-                    </Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="rounded-xl text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="confirmPassword" className="text-xs">
-                      Confirm New Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="rounded-xl text-sm"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={changingPassword}
-                    className="rounded-xl"
-                  >
-                    {changingPassword && (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    )}
-                    Update Password
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-sm md:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Connected Accounts</CardTitle>
-                <CardDescription className="text-xs">
-                  Manage your connected social accounts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between rounded-xl border border-border p-3 transition-colors hover:bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-muted to-muted/50">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24">
-                        <path
-                          fill="#4285F4"
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        />
-                        <path
-                          fill="#EA4335"
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">Google</p>
-                      <p className="text-muted-foreground text-xs">
-                        Not connected
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 rounded-lg text-xs"
-                  >
-                    Connect
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="notifications" className="w-full">
+        <TabsContent value="learning" className="w-full">
           <Card className="rounded-2xl shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Email Notifications</CardTitle>
+              <CardTitle className="text-base">Learning Preferences</CardTitle>
               <CardDescription className="text-xs">
-                Choose what emails you want to receive
+                Customize your learning experience
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl p-2 transition-colors hover:bg-muted/30">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Weekly Study Goal (hours)</Label>
+                <Select
+                  value={String(weeklyGoalHours)}
+                  onValueChange={(v) => setWeeklyGoalHours(Number(v))}
+                >
+                  <SelectTrigger className="rounded-xl text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 5, 7, 10, 15, 20].map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {h} hours per week
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Preferred Pace</Label>
+                <Select value={preferredPace} onValueChange={setPreferredPace}>
+                  <SelectTrigger className="rounded-xl text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="self-paced">
+                      Self-Paced — Learn at your own speed
+                    </SelectItem>
+                    <SelectItem value="structured">
+                      Structured — Follow a weekly schedule
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl p-2 hover:bg-muted/30">
                 <div>
-                  <p className="font-medium text-sm">Learning Reminders</p>
+                  <p className="font-medium text-sm">Study Reminders</p>
                   <p className="text-muted-foreground text-xs">
-                    Receive reminders to continue your courses
+                    Get daily reminders to continue learning
                   </p>
                 </div>
                 <Switch
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
+                  checked={studyReminders}
+                  onCheckedChange={setStudyReminders}
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-xl p-2 transition-colors hover:bg-muted/30">
-                <div>
-                  <p className="font-medium text-sm">Course Updates</p>
-                  <p className="text-muted-foreground text-xs">
-                    Get notified when courses you&apos;re enrolled in are
-                    updated
-                  </p>
-                </div>
-                <Switch
-                  checked={courseUpdates}
-                  onCheckedChange={setCourseUpdates}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl p-2 transition-colors hover:bg-muted/30">
-                <div>
-                  <p className="font-medium text-sm">Marketing Emails</p>
-                  <p className="text-muted-foreground text-xs">
-                    Receive news about new courses and special offers
-                  </p>
-                </div>
-                <Switch
-                  checked={marketingEmails}
-                  onCheckedChange={setMarketingEmails}
-                />
-              </div>
+              <Button
+                size="sm"
+                className="rounded-xl"
+                onClick={handleSaveLearningPrefs}
+                disabled={savingPrefs}
+              >
+                {savingPrefs && (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                )}
+                Save Preferences
+              </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="w-full">
+          <SecurityCard />
+        </TabsContent>
+
+        <TabsContent value="preferences" className="w-full">
+          <div className="grid gap-4 md:grid-cols-2">
+            <ThemeCard />
+            <PreferencesCard
+              currentLanguage={user.language}
+              currentTimezone={user.timezone}
+            />
+            <div className="md:col-span-2">
+              <NotificationsCard initialPrefs={user.notificationPrefs} />
+            </div>
+            <div className="md:col-span-2">
+              <DangerZoneCard />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
