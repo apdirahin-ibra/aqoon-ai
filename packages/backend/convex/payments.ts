@@ -1,61 +1,74 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin, requireAuth } from "./helpers";
 
 // ─── Record payment ──────────────────────────────────────────────────────────
 export const recordPayment = mutation({
-	args: {
-		courseId: v.id("courses"),
-		amountCents: v.number(),
-		stripePaymentId: v.string(),
-		status: v.string(),
-	},
-	handler: async (ctx, args) => {
-		const { user } = await requireAuth(ctx);
-		if (!user) throw new Error("User profile not found");
+  args: {
+    courseId: v.id("courses"),
+    amountCents: v.number(),
+    stripePaymentId: v.string(),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireAuth(ctx);
+    if (!user) throw new Error("User profile not found");
 
-		return await ctx.db.insert("payments", {
-			userId: user._id,
-			courseId: args.courseId,
-			amountCents: args.amountCents,
-			stripePaymentId: args.stripePaymentId,
-			status: args.status,
-			createdAt: Date.now(),
-		});
-	},
+    const paymentId = await ctx.db.insert("payments", {
+      userId: user._id,
+      courseId: args.courseId,
+      amountCents: args.amountCents,
+      stripePaymentId: args.stripePaymentId,
+      status: args.status,
+      createdAt: Date.now(),
+    });
+
+    // Audit log
+    const course = await ctx.db.get(args.courseId);
+    await ctx.scheduler.runAfter(0, internal.auditLogs.log, {
+      userId: user._id,
+      userName: user.name ?? "Student",
+      action: "Payment recorded",
+      details: `Payment of $${(args.amountCents / 100).toFixed(2)} for "${course?.title ?? "course"}"`,
+      category: "payment",
+    });
+
+    return paymentId;
+  },
 });
 
 // ─── List my payments ─────────────────────────────────────────────────────────
 export const myPayments = query({
-	args: {},
-	handler: async (ctx) => {
-		const { user } = await requireAuth(ctx);
-		if (!user) return [];
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await requireAuth(ctx);
+    if (!user) return [];
 
-		const payments = await ctx.db
-			.query("payments")
-			.withIndex("by_user", (q) => q.eq("userId", user._id))
-			.collect();
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
 
-		const enriched = await Promise.all(
-			payments.map(async (payment) => {
-				const course = await ctx.db.get(payment.courseId);
-				return {
-					...payment,
-					courseTitle: course?.title ?? "Unknown Course",
-				};
-			}),
-		);
+    const enriched = await Promise.all(
+      payments.map(async (payment) => {
+        const course = await ctx.db.get(payment.courseId);
+        return {
+          ...payment,
+          courseTitle: course?.title ?? "Unknown Course",
+        };
+      }),
+    );
 
-		return enriched.sort((a, b) => b.createdAt - a.createdAt);
-	},
+    return enriched.sort((a, b) => b.createdAt - a.createdAt);
+  },
 });
 
 // ─── Admin: list all payments ─────────────────────────────────────────────────
 export const listAll = query({
-	args: {},
-	handler: async (ctx) => {
-		await requireAdmin(ctx);
-		return await ctx.db.query("payments").collect();
-	},
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db.query("payments").collect();
+  },
 });

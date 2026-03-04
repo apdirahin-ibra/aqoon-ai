@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin, requireAuth, requireTutor } from "./helpers";
 
@@ -41,13 +42,27 @@ export const create = mutation({
       throw new Error("You have already reviewed this course");
     }
 
-    return await ctx.db.insert("reviews", {
+    const reviewId = await ctx.db.insert("reviews", {
       userId: user._id,
       courseId: args.courseId,
       rating: args.rating,
       comment: args.comment,
       createdAt: Date.now(),
     });
+
+    // Notify the course tutor
+    const course = await ctx.db.get(args.courseId);
+    if (course?.tutorId) {
+      await ctx.scheduler.runAfter(0, internal.notifications.create, {
+        userId: course.tutorId,
+        type: "course",
+        title: "New Review",
+        message: `${user.name ?? "A student"} left a ${args.rating}-star review on "${course.title}"`,
+        link: "/tutor/reviews",
+      });
+    }
+
+    return reviewId;
   },
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
 import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
@@ -19,12 +19,14 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const categoryStyles: Record<string, string> = {
@@ -48,12 +50,46 @@ export default function CourseDetailPage({
 
   const course = useQuery(api.courses.get, { courseId });
   const lessons = useQuery(api.lessons.listByCourse, { courseId });
+  const reviews = useQuery(api.reviews.listByCourse, { courseId });
 
-  // enrollments.check requires auth — if the user is not logged in,
-  // the server-side requireAuth throws and useQuery returns undefined.
+  // enrollments.check requires auth — if not logged in, returns undefined
   const enrollmentStatus = useQuery(api.enrollments.check, { courseId });
   const isEnrolled = enrollmentStatus?.enrolled ?? false;
   const enroll = useMutation(api.enrollments.enroll);
+
+  // Progress — only fetch if enrolled
+  const progressData = useQuery(
+    api.progress.getCourseProgress,
+    isEnrolled ? { courseId } : "skip",
+  );
+
+  // Review form state
+  const createReview = useMutation(api.reviews.create);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
+
+  const handleSubmitReview = async () => {
+    if (!reviewRating) return;
+    setIsSubmittingReview(true);
+    try {
+      await createReview({
+        courseId,
+        rating: reviewRating,
+        comment: reviewComment || undefined,
+      });
+      toast.success("Review submitted successfully!");
+      setReviewComment("");
+      setReviewRating(5);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to submit review";
+      toast.error(message);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   if (course === undefined) {
     return (
@@ -95,6 +131,8 @@ export default function CourseDetailPage({
   const totalDuration = course.totalDuration ?? 0;
   const lessonsList = lessons ?? [];
   const firstLessonId = lessonsList.length > 0 ? lessonsList[0]._id : null;
+  const courseProgress = progressData?.progress ?? 0;
+  const reviewsList = reviews ?? [];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -184,9 +222,9 @@ export default function CourseDetailPage({
 
                   {isEnrolled ? (
                     <>
-                      <Progress value={0} className="mb-4" />
+                      <Progress value={courseProgress} className="mb-4" />
                       <p className="mb-3 text-center text-muted-foreground text-sm">
-                        0% completed
+                        {courseProgress}% completed
                       </p>
                       <Button className="mb-3 w-full rounded-xl" asChild>
                         <Link
@@ -196,7 +234,9 @@ export default function CourseDetailPage({
                               : `/courses/${courseId}`
                           }
                         >
-                          Start Learning
+                          {courseProgress > 0
+                            ? "Continue Learning"
+                            : "Start Learning"}
                         </Link>
                       </Button>
 
@@ -264,15 +304,21 @@ export default function CourseDetailPage({
                         onClick={async () => {
                           try {
                             await enroll({ courseId });
+                            toast.success("Successfully enrolled! 🎉");
                           } catch (err: unknown) {
-                            // If user is not logged in, redirect to sign-in
                             const message =
                               err instanceof Error ? err.message : "";
                             if (
                               message.includes("authentication") ||
                               message.includes("Not authenticated")
                             ) {
-                              window.location.href = "/auth/sign-in";
+                              window.location.href = "/signin";
+                            } else if (message.includes("Payment required")) {
+                              toast.error(
+                                "This is a premium course. Payment integration coming soon!",
+                              );
+                            } else {
+                              toast.error(message || "Failed to enroll");
                             }
                           }
                         }}
@@ -306,13 +352,12 @@ export default function CourseDetailPage({
             {lessonsList.map((lesson, index) => {
               const canAccess = isEnrolled || lesson.isPreview;
 
-              return (
+              const content = (
                 <div
-                  key={lesson._id}
                   className={cn(
                     "flex items-center gap-4 rounded-xl border p-4 transition-colors",
                     canAccess
-                      ? "cursor-pointer border-border hover:border-primary/30"
+                      ? "cursor-pointer border-border hover:border-primary/30 hover:bg-muted/30"
                       : "border-border/50 opacity-60",
                   )}
                 >
@@ -341,6 +386,19 @@ export default function CourseDetailPage({
                   </div>
                 </div>
               );
+
+              if (canAccess) {
+                return (
+                  <Link
+                    key={lesson._id}
+                    href={`/student/learn/${courseId}/${lesson._id}`}
+                  >
+                    {content}
+                  </Link>
+                );
+              }
+
+              return <div key={lesson._id}>{content}</div>;
             })}
           </div>
         ) : (
@@ -353,6 +411,108 @@ export default function CourseDetailPage({
             </CardContent>
           </Card>
         )}
+      </div>
+
+      {/* Reviews Section */}
+      <div className="border-t bg-muted/30">
+        <div className="container py-12">
+          <h2 className="mb-6 font-bold font-display text-2xl">
+            Reviews ({reviewsList.length})
+          </h2>
+
+          {/* Write Review Form — only for enrolled students */}
+          {isEnrolled && (
+            <Card className="mb-8">
+              <CardContent className="p-6">
+                <h3 className="mb-4 font-semibold">Write a Review</h3>
+                <div className="mb-4 flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      aria-label={`Rate ${star} stars`}
+                      className="transition-transform hover:scale-110"
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      onClick={() => setReviewRating(star)}
+                    >
+                      <Star
+                        className={cn(
+                          "h-7 w-7 transition-colors",
+                          (hoverRating || reviewRating) >= star
+                            ? "fill-yellow-500 text-yellow-500"
+                            : "text-muted-foreground/30",
+                        )}
+                      />
+                    </button>
+                  ))}
+                  <span className="ml-2 text-muted-foreground text-sm">
+                    {reviewRating}/5
+                  </span>
+                </div>
+                <Textarea
+                  placeholder="Share your experience with this course... (optional)"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  rows={3}
+                  className="mb-4"
+                />
+                <Button
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                  className="rounded-xl"
+                >
+                  {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Review List */}
+          {reviewsList.length > 0 ? (
+            <div className="space-y-4">
+              {reviewsList.map((review) => (
+                <Card key={review._id}>
+                  <CardContent className="p-5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
+                          {(review.userName ?? "A").charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-sm">
+                          {review.userName}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground text-xs">
+                        {formatRelativeTime(review.createdAt)}
+                      </span>
+                    </div>
+                    <div className="mb-2 flex gap-0.5">
+                      {Array.from({ length: review.rating }).map((_, i) => (
+                        <Star
+                          key={`star-${review._id}-${i}`}
+                          className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500"
+                        />
+                      ))}
+                    </div>
+                    {review.comment && (
+                      <p className="text-muted-foreground text-sm">
+                        {review.comment}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">
+              No reviews yet.{" "}
+              {isEnrolled
+                ? "Be the first to leave one!"
+                : "Enroll to leave a review."}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

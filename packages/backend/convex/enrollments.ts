@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireStudent } from "./helpers";
 
@@ -52,12 +53,34 @@ export const enroll = mutation({
       }
     }
 
-    return await ctx.db.insert("enrollments", {
+    const enrollmentId = await ctx.db.insert("enrollments", {
       userId: user._id,
       courseId: args.courseId,
       enrolledAt: Date.now(),
       status: "active",
     });
+
+    // Log audit event
+    await ctx.scheduler.runAfter(0, internal.auditLogs.log, {
+      userId: user._id,
+      userName: user.name ?? "Unknown",
+      action: "Enrolled in course",
+      details: `Enrolled in "${course.title}"`,
+      category: "course",
+    });
+
+    // Notify tutor about new enrollment
+    if (course.tutorId) {
+      await ctx.scheduler.runAfter(0, internal.notifications.create, {
+        userId: course.tutorId,
+        type: "course",
+        title: "New Student Enrolled",
+        message: `${user.name ?? "A student"} enrolled in "${course.title}"`,
+        link: "/tutor/students",
+      });
+    }
+
+    return enrollmentId;
   },
 });
 
@@ -118,6 +141,10 @@ export const myEnrollments = query({
           .withIndex("by_course", (q) => q.eq("courseId", course._id))
           .collect();
 
+        // Sort by orderIndex so first lesson is at index 0
+        lessons.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+        const firstLessonId = lessons[0]?._id ?? null;
+
         const completedForCourse = lessons.filter((l) =>
           completedLessonIds.has(l._id),
         ).length;
@@ -138,6 +165,7 @@ export const myEnrollments = query({
           progress,
           lessonCount: lessons.length,
           completedLessonCount: completedForCourse,
+          firstLessonId,
         };
       }),
     );

@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/table";
 
 export default function AdminCoursesPage() {
-  const courses = useQuery(api.courses.listPublic, {});
+  const courses = useQuery(api.courses.listAll, {});
   const publishCourse = useMutation(api.courses.publish);
   const unpublishCourse = useMutation(api.courses.unpublish);
   const removeCourse = useMutation(api.courses.remove);

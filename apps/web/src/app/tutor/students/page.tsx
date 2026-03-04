@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate, getInitials } from "@/lib/utils";
 
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
 import { useQuery } from "convex/react";
@@ -33,14 +33,6 @@ export default function TutorStudentsPage() {
   const students = useQuery(api.courses.tutorStudents);
   const [search, setSearch] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
-
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
 
   // Get unique courses for filter
   const courseNames = students

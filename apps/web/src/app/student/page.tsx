@@ -110,7 +110,11 @@ export default function StudentDashboardPage() {
               return (
                 <Link
                   key={enrollment._id}
-                  href={`/student/learn/${enrollment.courseId}`}
+                  href={
+                    enrollment.firstLessonId
+                      ? `/student/learn/${enrollment.courseId}/${enrollment.firstLessonId}`
+                      : `/courses/${enrollment.courseId}`
+                  }
                   className="fade-in slide-in-from-bottom-4 block animate-in"
                   style={{
                     animationDelay: `${(i + 3) * 100}ms`,

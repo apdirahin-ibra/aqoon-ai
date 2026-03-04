@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import {
   optionalAuth,
@@ -266,17 +267,37 @@ export const updateRole = mutation({
     role: v.union(v.literal("admin"), v.literal("tutor"), v.literal("student")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const { user: admin } = await requireAdmin(ctx);
 
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
     }
 
+    const oldRole = targetUser.role;
     await ctx.db.patch(args.userId, {
       role: args.role,
       updatedAt: Date.now(),
     });
+
+    // Audit log
+    await ctx.scheduler.runAfter(0, internal.auditLogs.log, {
+      userId: admin?._id,
+      userName: admin?.name ?? "Admin",
+      action: "Changed user role",
+      details: `Changed ${targetUser.name ?? targetUser.email} role from ${oldRole} to ${args.role}`,
+      category: "user",
+    });
+
+    // Notify the user about role change
+    await ctx.scheduler.runAfter(0, internal.notifications.create, {
+      userId: args.userId,
+      type: "system",
+      title: "Role Updated",
+      message: `Your role has been changed to ${args.role}`,
+      link: "/dashboard",
+    });
+
     return args.userId;
   },
 });
@@ -321,5 +342,115 @@ export const list = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);
     return await ctx.db.query("users").collect();
+  },
+});
+
+// ─── Get tutor public profile with their courses ─────────────────────────────
+export const getTutorProfile = query({
+  args: { tutorId: v.id("users") },
+  handler: async (ctx, args) => {
+    const tutor = await ctx.db.get(args.tutorId);
+    if (!tutor || tutor.role !== "tutor") return null;
+
+    // Get tutor's published courses
+    const courses = await ctx.db
+      .query("courses")
+      .withIndex("by_tutor", (q) => q.eq("tutorId", args.tutorId))
+      .collect();
+
+    const publishedCourses = courses.filter((c) => c.isPublished);
+
+    // Collect stats across all courses
+    let totalStudents = 0;
+    let totalReviews = 0;
+    let ratingSum = 0;
+    const enrichedCourses = [];
+
+    for (const course of publishedCourses) {
+      const enrollments = await ctx.db
+        .query("enrollments")
+        .withIndex("by_course", (q) => q.eq("courseId", course._id))
+        .collect();
+      const activeCount = enrollments.filter(
+        (e) => e.status === "active",
+      ).length;
+
+      const reviews = await ctx.db
+        .query("reviews")
+        .withIndex("by_course", (q) => q.eq("courseId", course._id))
+        .collect();
+
+      const avg =
+        reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+          : 0;
+
+      const lessons = await ctx.db
+        .query("lessons")
+        .withIndex("by_course", (q) => q.eq("courseId", course._id))
+        .collect();
+
+      totalStudents += activeCount;
+      totalReviews += reviews.length;
+      ratingSum += avg * reviews.length;
+
+      enrichedCourses.push({
+        _id: course._id,
+        title: course.title,
+        description: course.description,
+        category: course.category,
+        level: course.level,
+        isPremium: course.isPremium,
+        priceCents: course.priceCents,
+        thumbnailUrl: course.thumbnailUrl,
+        studentCount: activeCount,
+        rating: Math.round(avg * 10) / 10,
+        reviewCount: reviews.length,
+        lessonCount: lessons.length,
+      });
+    }
+
+    const avgRating =
+      totalReviews > 0 ? Math.round((ratingSum / totalReviews) * 10) / 10 : 0;
+
+    return {
+      _id: tutor._id,
+      name: tutor.name,
+      image: tutor.image,
+      bio: tutor.bio,
+      specialties: tutor.specialties ?? [],
+      avgRating,
+      totalStudents,
+      totalReviews,
+      totalCourses: publishedCourses.length,
+      courses: enrichedCourses,
+    };
+  },
+});
+
+// ─── Search users (for messaging new conversation) ────────────────────────────
+export const searchUsers = query({
+  args: { search: v.string() },
+  handler: async (ctx, args) => {
+    const { user } = await requireAuth(ctx);
+    if (!user) return [];
+
+    const allUsers = await ctx.db.query("users").collect();
+
+    const query = args.search.toLowerCase();
+    return allUsers
+      .filter(
+        (u) =>
+          u._id !== user._id &&
+          (u.name.toLowerCase().includes(query) ||
+            u.email.toLowerCase().includes(query)),
+      )
+      .slice(0, 10)
+      .map((u) => ({
+        _id: u._id,
+        name: u.name,
+        image: u.image,
+        role: u.role,
+      }));
   },
 });

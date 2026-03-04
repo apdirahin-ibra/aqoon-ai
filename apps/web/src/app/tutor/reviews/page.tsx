@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatRelativeTime, getInitials } from "@/lib/utils";
 
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
 import { useQuery } from "convex/react";
@@ -25,14 +25,6 @@ export default function TutorReviewsPage() {
   const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState("all");
   const [courseFilter, setCourseFilter] = useState("all");
-
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
 
   // Stats
   const totalReviews = reviews?.length ?? 0;

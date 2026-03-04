@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import {
   calcAvgRating,
@@ -340,20 +341,36 @@ export const remove = mutation({
 export const publish = mutation({
   args: { courseId: v.id("courses") },
   handler: async (ctx, args) => {
-    const { user } = await requireAuth(ctx);
+    const { user } = await requireTutor(ctx);
     if (!user) throw new Error("User profile not found");
 
     const course = await ctx.db.get(args.courseId);
     if (!course) throw new Error("Course not found");
+    if (course.tutorId !== user._id) throw new Error("Not your course");
 
-    if (user.role !== "admin" && course.tutorId !== user._id) {
-      throw new Error("Access denied");
+    const lessons = await ctx.db
+      .query("lessons")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+
+    if (lessons.length === 0) {
+      throw new Error("Add at least one lesson before publishing");
     }
 
     await ctx.db.patch(args.courseId, {
       isPublished: true,
       updatedAt: Date.now(),
     });
+
+    // Audit log
+    await ctx.scheduler.runAfter(0, internal.auditLogs.log, {
+      userId: user._id,
+      userName: user.name ?? "Tutor",
+      action: "Published course",
+      details: `Published course "${course.title}"`,
+      category: "course",
+    });
+
     return args.courseId;
   },
 });
@@ -436,5 +453,42 @@ export const tutorStudents = query({
     }
 
     return students.sort((a, b) => b.enrolledAt - a.enrolledAt);
+  },
+});
+
+// ─── List all courses (admin only — includes drafts) ──────────────────────────
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const courses = await ctx.db.query("courses").collect();
+
+    const enriched = await Promise.all(
+      courses.map(async (course) => {
+        const tutor = course.tutorId ? await ctx.db.get(course.tutorId) : null;
+        const enrollments = await ctx.db
+          .query("enrollments")
+          .withIndex("by_course", (q) => q.eq("courseId", course._id))
+          .collect();
+        const reviews = await ctx.db
+          .query("reviews")
+          .withIndex("by_course", (q) => q.eq("courseId", course._id))
+          .collect();
+
+        return {
+          ...course,
+          tutorName: tutor?.name ?? "Unknown",
+          enrollmentCount: enrollments.filter((e) => e.status === "active")
+            .length,
+          avgRating: calcAvgRating(reviews),
+          reviewCount: reviews.length,
+        };
+      }),
+    );
+
+    return enriched.sort(
+      (a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0),
+    );
   },
 });

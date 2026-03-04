@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate } from "@/lib/utils";
 
 const roleColors: Record<string, string> = {
   student: "bg-blue-500/10 text-blue-500",
@@ -62,14 +63,6 @@ export default function AdminUsersPage() {
     newRole: "student" | "tutor" | "admin",
   ) => {
     await updateRole({ userId, role: newRole });
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
   };
 
   return (

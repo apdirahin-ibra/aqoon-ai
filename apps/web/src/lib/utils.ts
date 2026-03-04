@@ -49,3 +49,14 @@ export const formatDate = (timestamp: number): string =>
     day: "numeric",
     year: "numeric",
   });
+
+/**
+ * Get initials from a name (up to 2 characters).
+ */
+export const getInitials = (name: string): string =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
