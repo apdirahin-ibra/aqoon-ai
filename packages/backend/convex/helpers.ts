@@ -6,70 +6,87 @@ import { authComponent } from "./auth";
  * Get the authenticated user or return null.
  */
 export async function optionalAuth(ctx: QueryCtx | MutationCtx) {
-	return await authComponent.safeGetAuthUser(ctx);
+  return await authComponent.safeGetAuthUser(ctx);
 }
 
 /**
  * Get the authenticated user or throw if not logged in.
  */
 export async function requireAuth(ctx: QueryCtx | MutationCtx) {
-	const authUser = await authComponent.safeGetAuthUser(ctx);
-	if (!authUser) {
-		throw new Error("Authentication required");
-	}
+  const authUser = await authComponent.safeGetAuthUser(ctx);
+  if (!authUser) {
+    throw new Error("Authentication required");
+  }
 
-	// Look up the app-level user record by email
-	const user = await ctx.db
-		.query("users")
-		.withIndex("by_email", (q) => q.eq("email", authUser.email))
-		.unique();
+  // Look up the app-level user record by email
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_email", (q) => q.eq("email", authUser.email))
+    .unique();
 
-	return { authUser, user };
+  return { authUser, user };
 }
 
 /**
  * Require authentication AND a specific role (admin or tutor).
  */
 export async function requireRole(
-	ctx: QueryCtx | MutationCtx,
-	role: "admin" | "tutor",
+  ctx: QueryCtx | MutationCtx,
+  role: "admin" | "tutor",
 ) {
-	const { authUser, user } = await requireAuth(ctx);
+  const { authUser, user } = await requireAuth(ctx);
 
-	if (!user) {
-		throw new Error("User profile not found. Please complete your profile.");
-	}
+  if (!user) {
+    throw new Error("User profile not found. Please complete your profile.");
+  }
 
-	if (user.role !== role && user.role !== "admin") {
-		throw new Error(`Access denied. Required role: ${role}`);
-	}
+  if (user.role !== role && user.role !== "admin") {
+    throw new Error(`Access denied. Required role: ${role}`);
+  }
 
-	return { authUser, user };
+  return { authUser, user };
 }
 
 /**
  * Require admin role specifically.
  */
 export async function requireAdmin(ctx: QueryCtx | MutationCtx) {
-	return requireRole(ctx, "admin");
+  return requireRole(ctx, "admin");
 }
 
 /**
  * Require tutor role (admins also pass).
  */
 export async function requireTutor(ctx: QueryCtx | MutationCtx) {
-	return requireRole(ctx, "tutor");
+  return requireRole(ctx, "tutor");
+}
+
+/**
+ * Require student role (admins also pass).
+ */
+export async function requireStudent(ctx: QueryCtx | MutationCtx) {
+  const { authUser, user } = await requireAuth(ctx);
+
+  if (!user) {
+    throw new Error("User profile not found. Please complete your profile.");
+  }
+
+  if (user.role !== "student" && user.role !== "admin") {
+    throw new Error("Access denied. Required role: student");
+  }
+
+  return { authUser, user };
 }
 
 /**
  * Enrich a userId into { name, image } for display.
  */
 export async function enrichUser(ctx: QueryCtx, userId: Id<"users">) {
-	const user = (await ctx.db.get(userId)) as Doc<"users"> | null;
-	return {
-		name: user?.name ?? "Anonymous",
-		image: user?.image,
-	};
+  const user = (await ctx.db.get(userId)) as Doc<"users"> | null;
+  return {
+    name: user?.name ?? "Anonymous",
+    image: user?.image,
+  };
 }
 
 /**
@@ -77,10 +94,10 @@ export async function enrichUser(ctx: QueryCtx, userId: Id<"users">) {
  * Returns one decimal precision (e.g. 4.3).
  */
 export function calcAvgRating(reviews: { rating: number }[]): number {
-	if (reviews.length === 0) return 0;
-	return (
-		Math.round(
-			(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10,
-		) / 10
-	);
+  if (reviews.length === 0) return 0;
+  return (
+    Math.round(
+      (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10,
+    ) / 10
+  );
 }
