@@ -2,253 +2,269 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-	// ─── Users ────────────────────────────────────────────────────────────────
-	// App-level user profile. Created/synced when a user signs up via Better-Auth.
-	users: defineTable({
-		name: v.string(),
-		email: v.string(),
-		image: v.optional(v.string()),
-		role: v.union(v.literal("admin"), v.literal("tutor"), v.literal("student")),
-		bio: v.optional(v.string()),
-		specialties: v.optional(v.array(v.string())),
-		// Profile preferences
-		theme: v.optional(v.string()), // "light" | "dark" | "system"
-		language: v.optional(v.string()), // "en" | "so" | "ar"
-		timezone: v.optional(v.string()), // IANA timezone
-		notificationPrefs: v.optional(
-			v.object({
-				emailNotifications: v.boolean(),
-				courseUpdates: v.boolean(),
-				marketingEmails: v.boolean(),
-			}),
-		),
-		// Student-only preferences
-		learningPrefs: v.optional(
-			v.object({
-				weeklyGoalHours: v.number(),
-				preferredPace: v.string(), // "self-paced" | "structured"
-				studyReminders: v.boolean(),
-			}),
-		),
-		// Tutor-only payout info
-		payoutInfo: v.optional(
-			v.object({
-				bankName: v.string(),
-				accountLast4: v.string(),
-				payoutMethod: v.string(), // "bank" | "paypal"
-			}),
-		),
-		createdAt: v.number(),
-		updatedAt: v.number(),
-	}).index("by_email", ["email"]),
+  // ─── Users ────────────────────────────────────────────────────────────────
+  // App-level user profile. Created/synced when a user signs up via Better-Auth.
+  users: defineTable({
+    name: v.string(),
+    email: v.string(),
+    image: v.optional(v.string()),
+    role: v.union(v.literal("admin"), v.literal("tutor"), v.literal("student")),
+    bio: v.optional(v.string()),
+    specialties: v.optional(v.array(v.string())),
+    // Profile preferences
+    theme: v.optional(v.string()), // "light" | "dark" | "system"
+    language: v.optional(v.string()), // "en" | "so" | "ar"
+    timezone: v.optional(v.string()), // IANA timezone
+    notificationPrefs: v.optional(
+      v.object({
+        emailNotifications: v.boolean(),
+        courseUpdates: v.boolean(),
+        marketingEmails: v.boolean(),
+      }),
+    ),
+    // Student-only preferences
+    learningPrefs: v.optional(
+      v.object({
+        weeklyGoalHours: v.number(),
+        preferredPace: v.string(), // "self-paced" | "structured"
+        studyReminders: v.boolean(),
+      }),
+    ),
+    // Tutor-only payout info
+    payoutInfo: v.optional(
+      v.object({
+        bankName: v.string(),
+        accountLast4: v.string(),
+        payoutMethod: v.string(), // "bank" | "paypal"
+      }),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_email", ["email"]),
 
-	// ─── Courses ──────────────────────────────────────────────────────────────
-	courses: defineTable({
-		title: v.string(),
-		description: v.optional(v.string()),
-		thumbnailUrl: v.optional(v.string()),
-		category: v.string(),
-		level: v.string(), // 'beginner' | 'intermediate' | 'advanced'
-		isPremium: v.boolean(),
-		priceCents: v.optional(v.number()),
-		tutorId: v.id("users"),
-		isPublished: v.boolean(),
-		createdAt: v.number(),
-		updatedAt: v.number(),
-	})
-		.index("by_tutor", ["tutorId"])
-		.index("by_category", ["category"])
-		.index("by_published", ["isPublished"]),
+  // ─── Courses ──────────────────────────────────────────────────────────────
+  courses: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
+    category: v.string(),
+    level: v.string(), // 'beginner' | 'intermediate' | 'advanced'
+    isPremium: v.boolean(),
+    priceCents: v.optional(v.number()),
+    tutorId: v.id("users"),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tutor", ["tutorId"])
+    .index("by_category", ["category"])
+    .index("by_published", ["isPublished"]),
 
-	// ─── Lessons ──────────────────────────────────────────────────────────────
-	lessons: defineTable({
-		courseId: v.id("courses"),
-		title: v.string(),
-		content: v.string(),
-		orderIndex: v.number(),
-		durationMinutes: v.optional(v.number()),
-		isPreview: v.boolean(),
-	})
-		.index("by_course", ["courseId"])
-		.index("by_course_order", ["courseId", "orderIndex"]),
+  // ─── Lessons ──────────────────────────────────────────────────────────────
+  lessons: defineTable({
+    courseId: v.id("courses"),
+    title: v.string(),
+    content: v.string(),
+    orderIndex: v.number(),
+    durationMinutes: v.optional(v.number()),
+    isPreview: v.boolean(),
+  })
+    .index("by_course", ["courseId"])
+    .index("by_course_order", ["courseId", "orderIndex"]),
 
-	// ─── Enrollments ──────────────────────────────────────────────────────────
-	enrollments: defineTable({
-		userId: v.id("users"),
-		courseId: v.id("courses"),
-		enrolledAt: v.number(),
-		completedAt: v.optional(v.number()),
-		status: v.string(), // 'active' | 'completed' | 'dropped'
-	})
-		.index("by_user", ["userId"])
-		.index("by_course", ["courseId"])
-		.index("by_user_course", ["userId", "courseId"]),
+  // ─── Enrollments ──────────────────────────────────────────────────────────
+  enrollments: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    enrolledAt: v.number(),
+    completedAt: v.optional(v.number()),
+    status: v.string(), // 'active' | 'completed' | 'dropped'
+  })
+    .index("by_user", ["userId"])
+    .index("by_course", ["courseId"])
+    .index("by_user_course", ["userId", "courseId"]),
 
-	// ─── Lesson Progress ──────────────────────────────────────────────────────
-	lessonProgress: defineTable({
-		userId: v.id("users"),
-		lessonId: v.id("lessons"),
-		completed: v.boolean(),
-		completedAt: v.optional(v.number()),
-	})
-		.index("by_user_lesson", ["userId", "lessonId"])
-		.index("by_user", ["userId"]),
+  // ─── Lesson Progress ──────────────────────────────────────────────────────
+  lessonProgress: defineTable({
+    userId: v.id("users"),
+    lessonId: v.id("lessons"),
+    completed: v.boolean(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user_lesson", ["userId", "lessonId"])
+    .index("by_user", ["userId"]),
 
-	// ─── Quizzes ──────────────────────────────────────────────────────────────
-	quizzes: defineTable({
-		lessonId: v.id("lessons"),
-		title: v.string(),
-		questions: v.array(
-			v.object({
-				question: v.string(),
-				options: v.array(v.string()),
-				correctOptionIndex: v.number(),
-				explanation: v.optional(v.string()),
-			}),
-		),
-	}).index("by_lesson", ["lessonId"]),
+  // ─── Quizzes ──────────────────────────────────────────────────────────────
+  quizzes: defineTable({
+    lessonId: v.id("lessons"),
+    title: v.string(),
+    questions: v.array(
+      v.object({
+        question: v.string(),
+        options: v.array(v.string()),
+        correctOptionIndex: v.number(),
+        explanation: v.optional(v.string()),
+      }),
+    ),
+  }).index("by_lesson", ["lessonId"]),
 
-	// ─── Quiz Attempts ────────────────────────────────────────────────────────
-	quizAttempts: defineTable({
-		quizId: v.id("quizzes"),
-		userId: v.id("users"),
-		answers: v.array(v.number()),
-		score: v.number(),
-		feedback: v.optional(v.string()),
-		completedAt: v.number(),
-	})
-		.index("by_user", ["userId"])
-		.index("by_quiz", ["quizId"]),
+  // ─── Quiz Attempts ────────────────────────────────────────────────────────
+  quizAttempts: defineTable({
+    quizId: v.id("quizzes"),
+    userId: v.id("users"),
+    answers: v.array(v.number()),
+    score: v.number(),
+    feedback: v.optional(v.string()),
+    completedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_quiz", ["quizId"]),
 
-	// ─── Payments ─────────────────────────────────────────────────────────────
-	payments: defineTable({
-		userId: v.id("users"),
-		courseId: v.id("courses"),
-		amountCents: v.number(),
-		stripePaymentId: v.string(),
-		status: v.string(), // 'succeeded' | 'pending' | 'failed'
-		createdAt: v.number(),
-	}).index("by_user", ["userId"]).index("by_course", ["courseId"]),
+  // ─── Payments ─────────────────────────────────────────────────────────────
+  payments: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    amountCents: v.number(),
+    stripePaymentId: v.string(),
+    status: v.string(), // 'succeeded' | 'pending' | 'failed'
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_course", ["courseId"]),
 
-	// ─── Reviews ──────────────────────────────────────────────────────────────
-	reviews: defineTable({
-		userId: v.id("users"),
-		courseId: v.id("courses"),
-		rating: v.number(), // 1-5
-		comment: v.optional(v.string()),
-		createdAt: v.number(),
-	})
-		.index("by_course", ["courseId"])
-		.index("by_user_course", ["userId", "courseId"]),
+  // ─── Reviews ──────────────────────────────────────────────────────────────
+  reviews: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    rating: v.number(), // 1-5
+    comment: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_course", ["courseId"])
+    .index("by_user_course", ["userId", "courseId"]),
 
-	// ─── Wishlist ─────────────────────────────────────────────────────────────
-	wishlist: defineTable({
-		userId: v.id("users"),
-		courseId: v.id("courses"),
-		addedAt: v.number(),
-	})
-		.index("by_user", ["userId"])
-		.index("by_user_course", ["userId", "courseId"]),
+  // ─── Wishlist ─────────────────────────────────────────────────────────────
+  wishlist: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_course", ["userId", "courseId"]),
 
-	// ─── Tutor Payouts ────────────────────────────────────────────────────────
-	payouts: defineTable({
-		tutorId: v.id("users"),
-		amountCents: v.number(),
-		stripeTransferId: v.string(),
-		status: v.string(), // 'pending' | 'paid' | 'failed'
-		processedAt: v.number(),
-	}).index("by_tutor", ["tutorId"]),
+  // ─── Tutor Payouts ────────────────────────────────────────────────────────
+  payouts: defineTable({
+    tutorId: v.id("users"),
+    amountCents: v.number(),
+    stripeTransferId: v.string(),
+    status: v.string(), // 'pending' | 'paid' | 'failed'
+    processedAt: v.number(),
+  }).index("by_tutor", ["tutorId"]),
 
-	// ─── Certificates ─────────────────────────────────────────────────────────
-	certificates: defineTable({
-		userId: v.id("users"),
-		courseId: v.id("courses"),
-		issuedAt: v.number(),
-		certificateUrl: v.string(),
-		code: v.string(), // Unique verification code
-	})
-		.index("by_user", ["userId"])
-		.index("by_course", ["courseId"])
-		.index("by_code", ["code"]),
+  // ─── Certificates ─────────────────────────────────────────────────────────
+  certificates: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    issuedAt: v.number(),
+    certificateUrl: v.string(),
+    code: v.string(), // Unique verification code
+  })
+    .index("by_user", ["userId"])
+    .index("by_course", ["courseId"])
+    .index("by_code", ["code"]),
 
-	// ─── Forum Posts ──────────────────────────────────────────────────────────
-	forumPosts: defineTable({
-		courseId: v.id("courses"),
-		userId: v.id("users"),
-		title: v.string(),
-		content: v.string(),
-		createdAt: v.number(),
-	})
-		.index("by_course", ["courseId"])
-		.index("by_user", ["userId"]),
+  // ─── Forum Posts ──────────────────────────────────────────────────────────
+  forumPosts: defineTable({
+    courseId: v.id("courses"),
+    userId: v.id("users"),
+    title: v.string(),
+    content: v.string(),
+    postType: v.optional(v.string()), // "question" | "discussion" | "bug" | "help_wanted" | "announcement"
+    isPinned: v.optional(v.boolean()),
+    isResolved: v.optional(v.boolean()),
+    upvoteCount: v.optional(v.number()),
+    viewCount: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_course", ["courseId"])
+    .index("by_user", ["userId"]),
 
-	// ─── Forum Replies ────────────────────────────────────────────────────────
-	forumReplies: defineTable({
-		postId: v.id("forumPosts"),
-		userId: v.id("users"),
-		content: v.string(),
-		createdAt: v.number(),
-	}).index("by_post", ["postId"]),
+  // ─── Forum Replies ────────────────────────────────────────────────────────
+  forumReplies: defineTable({
+    postId: v.id("forumPosts"),
+    userId: v.id("users"),
+    content: v.string(),
+    createdAt: v.number(),
+  }).index("by_post", ["postId"]),
 
-	// ─── Notifications ────────────────────────────────────────────────────────
-	notifications: defineTable({
-		userId: v.id("users"),
-		type: v.string(), // 'enrollment' | 'quiz_result' | 'certificate' | 'forum_reply'
-		title: v.string(),
-		message: v.string(),
-		isRead: v.boolean(),
-		link: v.optional(v.string()),
-		createdAt: v.number(),
-	}).index("by_user", ["userId"]),
+  // ─── Forum Upvotes ────────────────────────────────────────────────────────
+  forumUpvotes: defineTable({
+    postId: v.id("forumPosts"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_post_user", ["postId", "userId"])
+    .index("by_post", ["postId"]),
 
-	// ─── Direct Messages ──────────────────────────────────────────────────────
-	messages: defineTable({
-		senderId: v.id("users"),
-		receiverId: v.id("users"),
-		content: v.string(),
-		isRead: v.boolean(),
-		createdAt: v.number(),
-	})
-		.index("by_sender", ["senderId"])
-		.index("by_receiver", ["receiverId"]),
+  // ─── Notifications ────────────────────────────────────────────────────────
+  notifications: defineTable({
+    userId: v.id("users"),
+    type: v.string(), // 'enrollment' | 'quiz_result' | 'certificate' | 'forum_reply'
+    title: v.string(),
+    message: v.string(),
+    isRead: v.boolean(),
+    link: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
 
-	// ─── Course Resources ─────────────────────────────────────────────────────
-	resources: defineTable({
-		courseId: v.id("courses"),
-		title: v.string(),
-		description: v.optional(v.string()),
-		fileUrl: v.string(),
-		fileType: v.union(
-			v.literal("document"),
-			v.literal("code"),
-			v.literal("image"),
-			v.literal("video"),
-		),
-		fileSizeBytes: v.optional(v.number()),
-		createdAt: v.number(),
-	}).index("by_course", ["courseId"]),
+  // ─── Direct Messages ──────────────────────────────────────────────────────
+  messages: defineTable({
+    senderId: v.id("users"),
+    receiverId: v.id("users"),
+    content: v.string(),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_sender", ["senderId"])
+    .index("by_receiver", ["receiverId"]),
 
-	// ─── Audit Logs ───────────────────────────────────────────────────────────
-	auditLogs: defineTable({
-		userId: v.optional(v.id("users")),
-		userName: v.string(),
-		action: v.string(),
-		details: v.string(),
-		category: v.union(
-			v.literal("auth"),
-			v.literal("course"),
-			v.literal("user"),
-			v.literal("payment"),
-			v.literal("system"),
-		),
-		createdAt: v.number(),
-	}).index("by_category", ["category"]),
+  // ─── Course Resources ─────────────────────────────────────────────────────
+  resources: defineTable({
+    courseId: v.id("courses"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    fileUrl: v.string(),
+    fileType: v.union(
+      v.literal("document"),
+      v.literal("code"),
+      v.literal("image"),
+      v.literal("video"),
+    ),
+    fileSizeBytes: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_course", ["courseId"]),
 
-	// ─── Platform Settings (admin) ────────────────────────────────────────────
-	platformSettings: defineTable({
-		key: v.string(),
-		value: v.string(),
-		updatedAt: v.number(),
-		updatedBy: v.id("users"),
-	}).index("by_key", ["key"]),
+  // ─── Audit Logs ───────────────────────────────────────────────────────────
+  auditLogs: defineTable({
+    userId: v.optional(v.id("users")),
+    userName: v.string(),
+    action: v.string(),
+    details: v.string(),
+    category: v.union(
+      v.literal("auth"),
+      v.literal("course"),
+      v.literal("user"),
+      v.literal("payment"),
+      v.literal("system"),
+    ),
+    createdAt: v.number(),
+  }).index("by_category", ["category"]),
+
+  // ─── Platform Settings (admin) ────────────────────────────────────────────
+  platformSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+    updatedAt: v.number(),
+    updatedBy: v.id("users"),
+  }).index("by_key", ["key"]),
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
@@ -25,9 +26,8 @@ import { ForumSidebar } from "@/components/forum/forum-sidebar";
 import { NewThreadDialog } from "@/components/forum/new-thread-dialog";
 import { ThreadDetailView } from "@/components/forum/thread-detail-view";
 import type { PostType } from "@/components/forum/forum-post-card";
-import Link from "next/link";
 
-export default function CourseForumPage() {
+export default function TutorCourseForumPage() {
   const params = useParams();
   const courseId = params.courseId as Id<"courses">;
 
@@ -52,7 +52,6 @@ export default function CourseForumPage() {
   const toggleResolved = useMutation(api.forum.toggleResolved);
   const incrementView = useMutation(api.forum.incrementViewCount);
 
-  // Increment view count when opening a post
   useEffect(() => {
     if (selectedPostId) {
       incrementView({ postId: selectedPostId });
@@ -138,7 +137,7 @@ export default function CourseForumPage() {
     );
   }
 
-  // Filter + sort posts
+  // Filter + sort
   const filteredPosts = posts.filter((post) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -154,10 +153,8 @@ export default function CourseForumPage() {
   });
 
   const sortedPosts = [...filteredPosts].sort((a, b) => {
-    // Pinned always first
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
-
     if (activeTab === "top") {
       return (b.upvoteCount ?? 0) - (a.upvoteCount ?? 0);
     }
@@ -173,18 +170,24 @@ export default function CourseForumPage() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/student">Dashboard</Link>
+              <Link href="/tutor">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href={`/student/courses/${courseId}`}>Course</Link>
+              <Link href="/tutor/courses">My Courses</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Discussion Forum</BreadcrumbPage>
+            <BreadcrumbLink asChild>
+              <Link href={`/tutor/courses/${courseId}`}>Edit Course</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Forum</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -192,16 +195,15 @@ export default function CourseForumPage() {
       {/* Header */}
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="mb-2 font-bold font-display text-3xl">
-            Course Discussion Forum
-          </h1>
+          <h1 className="mb-2 font-bold font-display text-3xl">Course Forum</h1>
           <p className="text-muted-foreground">
-            Connect with peers, ask questions, and share your knowledge.
+            Engage with your students and moderate discussions.
           </p>
         </div>
         <NewThreadDialog
           onSubmit={handleCreatePost}
           isSubmitting={isSubmitting}
+          isTutor
         />
       </div>
 
@@ -246,7 +248,7 @@ export default function CourseForumPage() {
               <MessageCircle className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
               <h3 className="mb-2 font-semibold text-xl">No discussions yet</h3>
               <p className="mb-4 text-muted-foreground">
-                Be the first to start a discussion in this course!
+                Start a discussion to engage with your students!
               </p>
             </div>
           )}

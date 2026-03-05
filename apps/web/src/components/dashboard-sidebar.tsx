@@ -12,6 +12,7 @@ export interface SidebarMenuItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  badge?: number;
 }
 
 interface DashboardSidebarProps {
@@ -121,8 +122,9 @@ export function DashboardSidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                data-badge={item.badge}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-all duration-200",
+                  "relative flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-all duration-200",
                   (isCollapsed || isMobile) && "justify-center px-2",
                   isActive
                     ? activeClasses
@@ -139,8 +141,20 @@ export function DashboardSidebar({
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 {!(isCollapsed || isMobile) && (
-                  <span className="tracking-wide">{item.title}</span>
+                  <span className="flex flex-1 items-center justify-between tracking-wide">
+                    {item.title}
+                    {item.badge != null && item.badge > 0 && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 font-bold text-[10px] text-destructive-foreground">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </span>
                 )}
+                {(isCollapsed || isMobile) &&
+                  item.badge != null &&
+                  item.badge > 0 && (
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-destructive" />
+                  )}
               </Link>
             );
           })}

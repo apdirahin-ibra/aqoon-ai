@@ -213,13 +213,24 @@ export const create = mutation({
     const { user } = await requireTutor(ctx);
 
     const now = Date.now();
-    return await ctx.db.insert("courses", {
+    const courseId = await ctx.db.insert("courses", {
       ...args,
       tutorId: user._id,
       isPublished: false,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Audit log
+    await ctx.scheduler.runAfter(0, internal.auditLogs.log, {
+      userId: user._id,
+      userName: user.name ?? "Tutor",
+      action: "Created course",
+      details: `Created course "${args.title}"`,
+      category: "course",
+    });
+
+    return courseId;
   },
 });
 

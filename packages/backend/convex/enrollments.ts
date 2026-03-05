@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireStudent } from "./helpers";
+import { optionalAuth, requireAuth, requireStudent } from "./helpers";
 
 // ─── Enroll in a course ───────────────────────────────────────────────────────
 export const enroll = mutation({
@@ -88,7 +88,13 @@ export const enroll = mutation({
 export const check = query({
   args: { courseId: v.id("courses") },
   handler: async (ctx, args) => {
-    const { user } = await requireAuth(ctx);
+    const authUser = await optionalAuth(ctx);
+    if (!authUser) return { enrolled: false };
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", authUser.email))
+      .unique();
     if (!user) return { enrolled: false };
 
     const enrollment = await ctx.db

@@ -6,7 +6,7 @@ import {
   BookOpen,
   Edit,
   Eye,
-  MoreHorizontal,
+  MessageCircle,
   Plus,
   Search,
   Star,
@@ -16,12 +16,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -97,38 +91,9 @@ export default function TutorCoursesPage() {
               </div>
 
               <div className="p-5">
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <h3 className="font-semibold leading-tight transition-colors group-hover:text-primary">
-                    {course.title}
-                  </h3>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-muted">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/tutor/courses/${course._id}`}
-                          className="flex items-center"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/courses/${course._id}`}
-                          className="flex items-center"
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                <h3 className="mb-2 font-semibold leading-tight transition-colors group-hover:text-primary">
+                  {course.title}
+                </h3>
 
                 <div className="mb-3 flex items-center gap-3">
                   <Badge variant={course.isPublished ? "default" : "secondary"}>
@@ -153,7 +118,7 @@ export default function TutorCoursesPage() {
                 </div>
 
                 {course.isPublished && (
-                  <div>
+                  <div className="mb-4">
                     <div className="mb-1 flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">
                         Avg. Completion
@@ -165,6 +130,43 @@ export default function TutorCoursesPage() {
                     <Progress value={course.completionRate} className="h-1.5" />
                   </div>
                 )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 border-t pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-lg text-xs"
+                    asChild
+                  >
+                    <Link href={`/tutor/courses/${course._id}`}>
+                      <Edit className="mr-1.5 h-3.5 w-3.5" />
+                      Edit
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-lg text-xs"
+                    asChild
+                  >
+                    <Link href={`/tutor/courses/${course._id}/forum`}>
+                      <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                      Forum
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-lg text-xs"
+                    asChild
+                  >
+                    <Link href={`/courses/${course._id}`}>
+                      <Eye className="mr-1.5 h-3.5 w-3.5" />
+                      Preview
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
