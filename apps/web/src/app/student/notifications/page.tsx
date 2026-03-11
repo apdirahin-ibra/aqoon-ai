@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import {
   Award,
@@ -10,9 +11,11 @@ import {
   Info,
   MessageSquare,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationDetailDialog } from "@/components/notification-detail-dialog";
 import { formatRelativeTime } from "@/lib/utils";
 
 const typeConfig: Record<
@@ -41,10 +44,21 @@ const typeConfig: Record<
   },
 };
 
+interface Notification {
+  _id: Id<"notifications">;
+  title: string;
+  message: string;
+  type: string;
+  createdAt: number;
+  isRead: boolean;
+}
+
 export default function NotificationsPage() {
   const notifications = useQuery(api.notifications.list);
   const markRead = useMutation(api.notifications.markRead);
   const markAllRead = useMutation(api.notifications.markAllRead);
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
 
   if (notifications === undefined) {
     return (
@@ -64,6 +78,13 @@ export default function NotificationsPage() {
   }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleNotificationClick = (notification: Notification) => {
+    setSelectedNotification(notification);
+    if (!notification.isRead) {
+      markRead({ notificationId: notification._id });
+    }
+  };
 
   return (
     <div className="container py-8">
@@ -98,9 +119,11 @@ export default function NotificationsPage() {
               const config = typeConfig[notification.type] ?? typeConfig.system;
               const Icon = config.icon;
               return (
-                <div
+                <button
                   key={notification._id}
-                  className={`fade-in slide-in-from-bottom-2 flex animate-in items-start gap-3 p-3 transition-colors hover:bg-muted/30 ${
+                  type="button"
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`fade-in slide-in-from-bottom-2 flex w-full animate-in items-start gap-3 p-3 text-left transition-colors hover:bg-muted/30 ${
                     !notification.isRead ? "bg-primary/5" : ""
                   }`}
                   style={{
@@ -121,7 +144,7 @@ export default function NotificationsPage() {
                         >
                           {notification.title}
                         </p>
-                        <p className="text-muted-foreground text-xs">
+                        <p className="line-clamp-1 text-muted-foreground text-xs">
                           {notification.message}
                         </p>
                       </div>
@@ -131,18 +154,12 @@ export default function NotificationsPage() {
                     </div>
                   </div>
                   {!notification.isRead && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        markRead({ notificationId: notification._id })
-                      }
-                      className="mt-1 shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title="Mark as read"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
+                    <div
+                      className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      title="Unread"
+                    />
                   )}
-                </div>
+                </button>
               );
             })}
           </CardContent>
@@ -158,6 +175,20 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Notification detail modal */}
+      <NotificationDetailDialog
+        notification={selectedNotification}
+        open={selectedNotification !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNotification(null);
+        }}
+        onMarkRead={
+          selectedNotification && !selectedNotification.isRead
+            ? () => markRead({ notificationId: selectedNotification._id })
+            : undefined
+        }
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import {
@@ -429,28 +430,119 @@ export const getTutorProfile = query({
 });
 
 // ─── Search users (for messaging new conversation) ────────────────────────────
+// Role-based filtering: students see enrolled tutors, tutors see enrolled students + admins, admins see all
 export const searchUsers = query({
   args: { search: v.string() },
   handler: async (ctx, args) => {
     const { user } = await requireAuth(ctx);
     if (!user) return [];
 
-    const allUsers = await ctx.db.query("users").collect();
-
     const query = args.search.toLowerCase();
-    return allUsers
-      .filter(
-        (u) =>
+
+    // Admin can message anyone
+    if (user.role === "admin") {
+      const allUsers = await ctx.db.query("users").collect();
+      return allUsers
+        .filter(
+          (u) =>
+            u._id !== user._id &&
+            (u.name.toLowerCase().includes(query) ||
+              u.email.toLowerCase().includes(query)),
+        )
+        .slice(0, 10)
+        .map((u) => ({
+          _id: u._id,
+          name: u.name,
+          image: u.image,
+          role: u.role,
+        }));
+    }
+
+    if (user.role === "student") {
+      // Students can only message tutors of courses they're enrolled in
+      const enrollments = await ctx.db
+        .query("enrollments")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      const activeCourseIds = enrollments
+        .filter((e) => e.status === "active")
+        .map((e) => e.courseId);
+
+      // Find tutors of those courses
+      const tutorIds = new Set<string>();
+      for (const courseId of activeCourseIds) {
+        const course = await ctx.db.get(courseId);
+        if (course) tutorIds.add(course.tutorId as string);
+      }
+
+      if (tutorIds.size === 0) return [];
+
+      const results = [];
+      for (const tutorId of tutorIds) {
+        const tutor = await ctx.db.get(tutorId as Id<"users">);
+        if (
+          tutor &&
+          (tutor.name.toLowerCase().includes(query) ||
+            tutor.email.toLowerCase().includes(query))
+        ) {
+          results.push({
+            _id: tutor._id,
+            name: tutor.name,
+            image: tutor.image,
+            role: tutor.role,
+          });
+        }
+      }
+      return results.slice(0, 10);
+    }
+
+    if (user.role === "tutor") {
+      // Tutors can message students enrolled in their courses + admins
+      const tutorCourses = await ctx.db
+        .query("courses")
+        .withIndex("by_tutor", (q) => q.eq("tutorId", user._id))
+        .collect();
+
+      // Get all enrolled student IDs
+      const studentIds = new Set<string>();
+      for (const course of tutorCourses) {
+        const enrollments = await ctx.db
+          .query("enrollments")
+          .withIndex("by_course", (q) => q.eq("courseId", course._id))
+          .collect();
+        for (const e of enrollments) {
+          if (e.status === "active") studentIds.add(e.userId as string);
+        }
+      }
+
+      // Also get all admins
+      const allUsers = await ctx.db.query("users").collect();
+      const admins = allUsers.filter((u) => u.role === "admin");
+      for (const admin of admins) {
+        studentIds.add(admin._id as string);
+      }
+
+      // Build results from allowed IDs
+      const results = [];
+      for (const id of studentIds) {
+        const u = await ctx.db.get(id as Id<"users">);
+        if (
+          u &&
           u._id !== user._id &&
           (u.name.toLowerCase().includes(query) ||
-            u.email.toLowerCase().includes(query)),
-      )
-      .slice(0, 10)
-      .map((u) => ({
-        _id: u._id,
-        name: u.name,
-        image: u.image,
-        role: u.role,
-      }));
+            u.email.toLowerCase().includes(query))
+        ) {
+          results.push({
+            _id: u._id,
+            name: u.name,
+            image: u.image,
+            role: u.role,
+          });
+        }
+      }
+      return results.slice(0, 10);
+    }
+
+    return [];
   },
 });

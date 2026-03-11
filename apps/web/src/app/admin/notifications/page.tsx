@@ -1,8 +1,7 @@
 "use client";
 
-import { formatRelativeTime } from "@/lib/utils";
-
 import { api } from "@aqoon-ai/backend/convex/_generated/api";
+import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import {
   Bell,
@@ -15,9 +14,12 @@ import {
   Shield,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationDetailDialog } from "@/components/notification-detail-dialog";
+import { formatRelativeTime } from "@/lib/utils";
 
 const typeConfig: Record<
   string,
@@ -55,27 +57,53 @@ const typeConfig: Record<
   },
 };
 
+interface Notification {
+  _id: Id<"notifications">;
+  _creationTime: number;
+  title: string;
+  message: string;
+  type: string;
+  createdAt: number;
+  isRead: boolean;
+}
+
 export default function AdminNotificationsPage() {
   const notifications = useQuery(api.notifications.list);
   const markRead = useMutation(api.notifications.markRead);
   const markAllRead = useMutation(api.notifications.markAllRead);
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
 
   const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
+
+  const handleNotificationClick = (notification: Notification) => {
+    setSelectedNotification(notification);
+    if (!notification.isRead) {
+      markRead({ notificationId: notification._id });
+    }
+  };
 
   return (
     <div className="container py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="mb-1 font-bold font-display text-3xl">
+          <h1 className="mb-1 font-bold font-display text-2xl">
             Notifications
           </h1>
-          <p className="text-muted-foreground">
-            Platform alerts and system notifications
+          <p className="text-muted-foreground text-sm">
+            {unreadCount > 0
+              ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+              : "Platform alerts and system notifications"}
           </p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={() => markAllRead({})}>
-            <CheckCheck className="mr-2 h-4 w-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => markAllRead({})}
+            className="rounded-xl text-xs"
+          >
+            <CheckCheck className="mr-1 h-3.5 w-3.5" />
             Mark all read ({unreadCount})
           </Button>
         )}
@@ -88,51 +116,59 @@ export default function AdminNotificationsPage() {
           ))}
         </div>
       ) : notifications.length > 0 ? (
-        <div className="space-y-3">
-          {notifications.map((notif) => {
-            const config = typeConfig[notif.type] ?? typeConfig.system;
-            const Icon = config.icon;
-            return (
-              <Card
-                key={notif._id}
-                className={`transition-all ${!notif.isRead ? "border-red-500/30 bg-red-500/5" : ""}`}
-              >
-                <CardContent className="flex items-start gap-4 pt-5 pb-5">
+        <Card className="rounded-2xl shadow-sm">
+          <CardContent className="divide-y p-0">
+            {notifications.map((notif, i) => {
+              const config = typeConfig[notif.type] ?? typeConfig.system;
+              const Icon = config.icon;
+              return (
+                <button
+                  key={notif._id}
+                  type="button"
+                  onClick={() => handleNotificationClick(notif)}
+                  className={`fade-in slide-in-from-bottom-2 flex w-full animate-in items-start gap-3 p-3 text-left transition-colors hover:bg-muted/30 ${
+                    !notif.isRead ? "bg-red-500/5" : ""
+                  }`}
+                  style={{
+                    animationDelay: `${i * 50}ms`,
+                    animationFillMode: "backwards",
+                  }}
+                >
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${config.gradient}`}
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.gradient}`}
                   >
-                    <Icon className={`h-5 w-5 ${config.color}`} />
+                    <Icon className={`h-4 w-4 ${config.color}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">{notif.title}</p>
-                    <p className="mt-0.5 text-muted-foreground text-xs">
-                      {notif.message}
-                    </p>
-                    <p className="mt-1 text-muted-foreground text-xs">
-                      {formatRelativeTime(notif._creationTime)}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p
+                          className={`text-sm ${!notif.isRead ? "font-semibold" : "font-medium"}`}
+                        >
+                          {notif.title}
+                        </p>
+                        <p className="line-clamp-1 text-muted-foreground text-xs">
+                          {notif.message}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {formatRelativeTime(notif._creationTime)}
+                      </span>
+                    </div>
                   </div>
                   {!notif.isRead && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() =>
-                        markRead({
-                          notificationId: notif._id,
-                        })
-                      }
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
+                    <div
+                      className="mt-2 h-2 w-2 shrink-0 rounded-full bg-red-500"
+                      title="Unread"
+                    />
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
       ) : (
-        <Card>
+        <Card className="rounded-2xl">
           <CardContent className="py-12 text-center">
             <Bell className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <h3 className="font-semibold text-sm">No notifications</h3>
@@ -142,6 +178,20 @@ export default function AdminNotificationsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Notification detail modal */}
+      <NotificationDetailDialog
+        notification={selectedNotification}
+        open={selectedNotification !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNotification(null);
+        }}
+        onMarkRead={
+          selectedNotification && !selectedNotification.isRead
+            ? () => markRead({ notificationId: selectedNotification._id })
+            : undefined
+        }
+      />
     </div>
   );
 }

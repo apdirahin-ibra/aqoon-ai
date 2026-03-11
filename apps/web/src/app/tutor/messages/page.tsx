@@ -5,7 +5,8 @@ import type { Id } from "@aqoon-ai/backend/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { MessageSquare, Plus, Search, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,12 @@ export default function TutorMessagesPage() {
   const thread = useQuery(
     api.messagesApi.getThread,
     selectedPartnerId ? { partnerId: selectedPartnerId } : "skip",
+  );
+
+  // Query the selected user's info — works even for brand-new conversations
+  const selectedUser = useQuery(
+    api.users.getById,
+    selectedPartnerId ? { userId: selectedPartnerId } : "skip",
   );
 
   const searchResults = useQuery(
@@ -72,6 +79,14 @@ export default function TutorMessagesPage() {
   const filtered = conversations.filter((c) =>
     c.partnerName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const partnerName =
+    conversations.find((c) => c.partnerId === selectedPartnerId)?.partnerName ??
+    selectedUser?.name ??
+    "Conversation";
+
+  const partnerRole = selectedUser?.role;
+  const partnerImage = selectedUser?.image;
 
   return (
     <div className="container py-8">
@@ -178,6 +193,7 @@ export default function TutorMessagesPage() {
                   )}
                 >
                   <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarImage src={conv.partnerImage || undefined} />
                     <AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/5 text-xs">
                       {getInitials(conv.partnerName)}
                     </AvatarFallback>
@@ -225,46 +241,84 @@ export default function TutorMessagesPage() {
         <Card className="flex flex-col overflow-hidden rounded-2xl shadow-sm">
           {selectedPartnerId ? (
             <>
-              <div className="border-b px-4 py-3">
-                <h3 className="font-semibold text-sm">
-                  {conversations.find((c) => c.partnerId === selectedPartnerId)
-                    ?.partnerName ?? "Conversation"}
-                </h3>
+              {/* Chat Header with user info */}
+              <div className="flex items-center gap-3 border-b px-4 py-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={partnerImage || undefined} />
+                  <AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/5 text-sm">
+                    {getInitials(partnerName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate font-semibold text-sm">
+                      {partnerName}
+                    </h3>
+                    {partnerRole && (
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 text-[10px] capitalize"
+                      >
+                        {partnerRole}
+                      </Badge>
+                    )}
+                  </div>
+                  {thread && thread.length > 0 && (
+                    <p className="text-muted-foreground text-[11px]">
+                      {thread.length} message{thread.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
               </div>
+
               <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
-                {(thread ?? []).map((msg) => {
-                  const isMe = msg.senderId === currentUser?._id;
-                  return (
-                    <div
-                      key={msg._id}
-                      className={cn(
-                        "flex",
-                        isMe ? "justify-end" : "justify-start",
-                      )}
-                    >
+                {(thread ?? []).length === 0 ? (
+                  <div className="flex flex-1 flex-col items-center justify-center text-center">
+                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                      <MessageSquare className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="mb-1 font-medium text-sm">
+                      Start chatting with {partnerName}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      Send a message to begin the conversation
+                    </p>
+                  </div>
+                ) : (
+                  (thread ?? []).map((msg) => {
+                    const isMe = msg.senderId === currentUser?._id;
+                    return (
                       <div
+                        key={msg._id}
                         className={cn(
-                          "max-w-[75%] rounded-2xl px-3 py-1.5 text-sm",
-                          isMe
-                            ? "rounded-br-md bg-primary text-primary-foreground"
-                            : "rounded-bl-md bg-muted",
+                          "flex",
+                          isMe ? "justify-end" : "justify-start",
                         )}
                       >
-                        <p>{msg.content}</p>
-                        <p
+                        <div
                           className={cn(
-                            "mt-0.5 text-[10px]",
+                            "max-w-[75%] rounded-2xl px-3 py-1.5 text-sm",
                             isMe
-                              ? "text-primary-foreground/60"
-                              : "text-muted-foreground",
+                              ? "rounded-br-md bg-primary text-primary-foreground"
+                              : "rounded-bl-md bg-muted",
                           )}
                         >
-                          {formatRelativeTime(msg.createdAt)}
-                        </p>
+                          <p>{msg.content}</p>
+                          <p
+                            className={cn(
+                              "mt-0.5 text-[10px]",
+                              isMe
+                                ? "text-primary-foreground/60"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            {formatRelativeTime(msg.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
               <div className="flex gap-2 border-t p-3">
                 <Input
