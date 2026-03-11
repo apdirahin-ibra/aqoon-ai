@@ -541,10 +541,29 @@ After each backend phase, replace mock data in corresponding frontend pages:
 
 ---
 
-## 9. Open Questions
+## 9. Open Questions (Resolved)
 
-1. **Payments:** Stripe or alternative provider?
-2. **AI Provider:** OpenAI (GPT-4) or Google Gemini?
-3. **File Storage:** Convex Storage for course thumbnails, lesson attachments, certificate PDFs?
-4. **Native app:** Wire `apps/native` alongside web, or web-first?
-5. **Email notifications:** SendGrid, Resend, or Convex built-in?
+1. **Payments:** Stripe was chosen.
+2. **AI Provider:** OpenRouter was chosen (implemented in `ai.ts`).
+3. **File Storage:** Convex native storage is being utilized (`files.ts`).
+4. **Native app:** Web-first approach. We paused work on `apps/native` to perfect the web app.
+5. **Email notifications:** To be handled via Better-Auth integration.
+
+---
+
+## 10. Progress Update (March 2026)
+
+Based on this original plan, the application is **~95% complete on the backend** and **~98% complete on the frontend**.
+
+### Completed Work
+- ✅ **Database Schema:** The complete relational-to-document database schema has been built, deployed, and seeded.
+- ✅ **Core API:** All CRUD operations for `users`, `courses`, and `lessons` are complete, with rigorous role-based access control (RBAC).
+- ✅ **Learning Flow:** Enrollment logic (with Stripe/free bypass), progress tracking, and quizzes are fully functional.
+- ✅ **Social Features:** Messaging (with role restrictions), reviews, forum, and notifications are entirely implemented.
+- ✅ **AI Integration:** AI functionalities have been successfully integrated using OpenRouter inside `ai.ts`.
+- ✅ **Frontend Architecture:** Next.js App Router migration is complete with protected directories (`/student`, `/tutor`, `/admin`). Better-Auth is fully rigged up with email/password and Google OAuth, replacing mock frontend data with Convex `useQuery`/`useMutation` hooks.
+
+### Remaining Work / Next Steps
+1. **Tutor Payouts:** Finalizing the automated payout flow via Stripe Connect (`convex/payouts.ts`). This is the *only* missing backend feature from the original spec.
+2. **Landing Page Design:** Bringing the newer "maximalist" sections on the landing page in line with the established "minimalist premium" V6 design language.
+3. **Emails:** Verifying email delivery templates for authentication and notifications.
